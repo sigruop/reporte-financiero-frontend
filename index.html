@@ -62,6 +62,10 @@
   .cat-tabla tr.cat-row td{font-weight:700;background:var(--paper);font-size:12.5px;}
   .cat-tabla tr.sub-row td:first-child{padding-left:28px;color:var(--muted);}
   .cat-tabla tr.total-row td{font-weight:700;border-top:2px solid var(--ink);padding-top:12px;}
+  .cat-tabla .arr{display:inline-block;width:14px;font-size:11px;color:var(--muted);cursor:pointer;user-select:none;transition:transform 0.15s;}
+  .cat-tabla tr.cat-row{cursor:pointer;}
+  .cat-tabla tr.cat-row:hover td,.cat-tabla tr.sub-row:hover td{background:var(--paper);}
+  .cat-tabla tr.det-row td{font-size:12px;color:var(--muted);padding-top:6px;padding-bottom:6px;}
   /* Tabla pagos */
   table.pagos-tabla{width:100%;border-collapse:collapse;background:#fff;}
   table.pagos-tabla thead th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:600;padding:10px 12px;border-bottom:2px solid var(--ink);position:sticky;top:0;background:#fff;white-space:nowrap;}
@@ -309,24 +313,51 @@ function renderEgresos(){
     <div class="card neo"><div class="label">Neoform</div><div class="value">${formatARS(neo)}</div></div>
     <div class="card"><div class="label">Pagos</div><div class="value">${pagos.length}</div></div>`;
 
-  // Tabla agrupada por categoría > subcategoría
+  // Tabla agrupada por categoría > subcategoría > detalle (expandible)
   const arbol={};
   pagos.forEach(p=>{
     const cat=p.categoria||'Sin clasificar';
     const sub=p.subcategoria||'Sin subcategoría';
+    const det=p.detalle||'';
     if(!arbol[cat]) arbol[cat]={total:0,count:0,subs:{}};
     arbol[cat].total+=(p.importe||0); arbol[cat].count++;
-    if(!arbol[cat].subs[sub]) arbol[cat].subs[sub]={total:0,count:0};
+    if(!arbol[cat].subs[sub]) arbol[cat].subs[sub]={total:0,count:0,dets:{}};
     arbol[cat].subs[sub].total+=(p.importe||0); arbol[cat].subs[sub].count++;
+    if(det){
+      if(!arbol[cat].subs[sub].dets[det]) arbol[cat].subs[sub].dets[det]={total:0,count:0};
+      arbol[cat].subs[sub].dets[det].total+=(p.importe||0);
+      arbol[cat].subs[sub].dets[det].count++;
+    }
   });
   const totalGeneral=pagos.reduce((a,p)=>a+(p.importe||0),0);
   document.getElementById('eg-catN').textContent=`(${Object.keys(arbol).length} categorías)`;
   let html='';
+  let ci=0;
   Object.entries(arbol).sort((a,b)=>b[1].total-a[1].total).forEach(([cat,datos])=>{
-    html+=`<tr class="cat-row"><td>${esc(cat)}</td><td class="num">${datos.count}</td><td class="num">${formatARS(datos.total)}</td></tr>`;
+    const catId=`c${ci}`;
+    html+=`<tr class="cat-row" onclick="toggleCat('${catId}')">
+      <td><span class="arr" id="arr-${catId}">▼</span> ${esc(cat)}</td>
+      <td class="num">${datos.count}</td><td class="num">${formatARS(datos.total)}</td></tr>`;
+    let si=0;
     Object.entries(datos.subs).sort((a,b)=>b[1].total-a[1].total).forEach(([sub,s])=>{
-      html+=`<tr class="sub-row"><td>${esc(sub)}</td><td class="num" style="color:var(--muted)">${s.count}</td><td class="num" style="color:var(--muted)">${formatARS(s.total)}</td></tr>`;
+      const subId=`s${ci}-${si}`;
+      const hasDet=Object.keys(s.dets).length>0;
+      const arrow=hasDet?`<span class="arr" id="arr-${subId}">▶</span>`:`<span style="display:inline-block;width:14px"></span>`;
+      html+=`<tr class="sub-row" data-cat="${catId}" ${hasDet?`onclick="toggleSub(event,'${subId}')"`:''}  style="${hasDet?'cursor:pointer':''}">
+        <td style="padding-left:24px">${arrow} ${esc(sub)}</td>
+        <td class="num" style="color:var(--muted)">${s.count}</td>
+        <td class="num" style="color:var(--muted)">${formatARS(s.total)}</td></tr>`;
+      if(hasDet){
+        Object.entries(s.dets).sort((a,b)=>b[1].total-a[1].total).forEach(([det,d])=>{
+          html+=`<tr class="det-row" data-sub="${subId}" style="display:none">
+            <td style="padding-left:44px">${esc(det)}</td>
+            <td class="num">${d.count}</td>
+            <td class="num">${formatARS(d.total)}</td></tr>`;
+        });
+      }
+      si++;
     });
+    ci++;
   });
   html+=`<tr class="total-row"><td><strong>TOTAL</strong></td><td class="num">${pagos.length}</td><td class="num">${formatARS(totalGeneral)}</td></tr>`;
   document.getElementById('eg-cat-tbody').innerHTML=html;
@@ -364,6 +395,35 @@ function renderEgresos(){
     <td class="num">${formatARS(p.importe)}</td>
     <td class="small">${esc(p.concepto)}</td>
   </tr>`).join('');
+}
+
+// Toggle categoría (expande/colapsa subcategorías)
+function toggleCat(catId){
+  const rows=document.querySelectorAll(`tr.sub-row[data-cat="${catId}"]`);
+  const arr=document.getElementById(`arr-${catId}`);
+  const open=arr.textContent==='▼';
+  arr.textContent=open?'▶':'▼';
+  rows.forEach(row=>{
+    row.style.display=open?'none':'';
+    // Si colapsamos la cat, colapsamos también los detalles abiertos
+    if(open){
+      const subId=row.querySelector('[id^="arr-s"]')?.id?.replace('arr-','');
+      if(subId){
+        document.querySelectorAll(`tr.det-row[data-sub="${subId}"]`).forEach(d=>d.style.display='none');
+        const sa=document.getElementById(`arr-${subId}`); if(sa) sa.textContent='▶';
+      }
+    }
+  });
+}
+
+// Toggle subcategoría (expande/colapsa detalles)
+function toggleSub(e,subId){
+  e.stopPropagation();
+  const rows=document.querySelectorAll(`tr.det-row[data-sub="${subId}"]`);
+  const arr=document.getElementById(`arr-${subId}`);
+  const open=arr.textContent==='▼';
+  arr.textContent=open?'▶':'▼';
+  rows.forEach(row=>row.style.display=open?'none':'');
 }
 
 // Listeners cascada
