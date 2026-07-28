@@ -116,6 +116,15 @@
         </select>
       </div>
       <div class="field">
+        <label>Unidad CEMEI</label>
+        <select id="eg-unidad">
+          <option value="">Todas</option>
+          <option value="CEMEI SRL">CEMEI SRL</option>
+          <option value="CEMEI Odontología">CEMEI Odontología</option>
+          <option value="Farmacia">Farmacia</option>
+        </select>
+      </div>
+      <div class="field">
         <label>Categoría</label>
         <select id="eg-cat" class="wide"><option value="">Todas</option></select>
       </div>
@@ -261,11 +270,20 @@ async function consultarEgresos(){
     estado.textContent=`${data.total} pagos encontrados.`;
     document.getElementById('stampFecha').textContent=`Actualizado: ${new Date().toLocaleString('es-AR')}`;
     poblarFiltrosCat(egBrutos);
+    poblarSucursalEg(egBrutos);
     renderEgresos();
   }catch(err){
     estado.className='estado error';
     estado.textContent=`Error: ${err.message}`;
   }
+}
+
+function poblarSucursalEg(pagos){
+  const suc=new Set(pagos.filter(p=>p.unidad).map(p=>p.unidad));
+  const sel=document.getElementById('eg-unidad');
+  const val=sel.value;
+  sel.innerHTML='<option value="">Todas</option>';
+  [...suc].sort().forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;if(s===val)o.selected=true;sel.appendChild(o);});
 }
 
 function poblarFiltrosCat(pagos){
@@ -290,10 +308,12 @@ function actualizarSubcats(pagos){
 
 function filtrarEgresos(){
   const emp=document.getElementById('eg-empresa').value;
+  const uni=document.getElementById('eg-unidad').value;
   const cat=document.getElementById('eg-cat').value;
   const sub=document.getElementById('eg-sub').value;
   return egBrutos.filter(p=>{
     if(emp && empresaKey(p.origen)!==emp) return false;
+    if(uni && p.unidad!==uni) return false;
     if(cat && p.categoria!==cat) return false;
     if(sub && p.subcategoria!==sub) return false;
     return true;
@@ -428,14 +448,17 @@ function toggleSub(e,subId){
 
 // Listeners cascada
 document.getElementById('eg-empresa').addEventListener('change',()=>{ if(egBrutos.length){ actualizarSubcats(filtrarEgresosBase()); renderEgresos(); }});
+document.getElementById('eg-unidad').addEventListener('change',()=>{ if(egBrutos.length){ actualizarSubcats(filtrarEgresosBase()); renderEgresos(); }});
 document.getElementById('eg-cat').addEventListener('change',()=>{ if(egBrutos.length){ actualizarSubcats(filtrarEgresosBase()); renderEgresos(); }});
 document.getElementById('eg-sub').addEventListener('change',()=>{ if(egBrutos.length) renderEgresos(); });
 
 function filtrarEgresosBase(){
   const emp=document.getElementById('eg-empresa').value;
+  const uni=document.getElementById('eg-unidad').value;
   const cat=document.getElementById('eg-cat').value;
   return egBrutos.filter(p=>{
     if(emp && empresaKey(p.origen)!==emp) return false;
+    if(uni && p.unidad!==uni) return false;
     if(cat && p.categoria!==cat) return false;
     return true;
   });
