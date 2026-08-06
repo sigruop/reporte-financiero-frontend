@@ -312,6 +312,7 @@ function filtrarEgresos(){
   const cat=document.getElementById('eg-cat').value;
   const sub=document.getElementById('eg-sub').value;
   return egBrutos.filter(p=>{
+    if(p.categoria==='__INTERNO__') return false; // excluir movimientos entre cuentas siempre
     if(emp && empresaKey(p.origen)!==emp) return false;
     if(uni && p.unidad!==uni) return false;
     if(cat && p.categoria!==cat) return false;
