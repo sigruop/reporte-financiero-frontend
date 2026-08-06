@@ -322,8 +322,9 @@ function filtrarEgresos(){
 
 function renderEgresos(){
   const pagos=filtrarEgresos();
-  const total=pagos.reduce((a,p)=>a+(p.importe||0),0);
-  const sig=pagos.filter(p=>empresaKey(p.origen)==='SIG').reduce((a,p)=>a+(p.importe||0),0);
+  const pagos_calc=pagos.filter(p=>p.categoria!=='__INTERNO__');
+  const total=pagos_calc.reduce((a,p)=>a+(p.importe||0),0);
+  const sig=pagos_calc.filter(p=>empresaKey(p.origen)==='SIG').reduce((a,p)=>a+(p.importe||0),0);
   const cemei=pagos.filter(p=>empresaKey(p.origen)==='CEMEI').reduce((a,p)=>a+(p.importe||0),0);
   const neo=pagos.filter(p=>empresaKey(p.origen)==='NEO').reduce((a,p)=>a+(p.importe||0),0);
   document.getElementById('eg-summary').innerHTML=`
@@ -334,8 +335,10 @@ function renderEgresos(){
     <div class="card"><div class="label">Pagos</div><div class="value">${pagos.length}</div></div>`;
 
   // Tabla agrupada por categoría > subcategoría > detalle (expandible)
+  // Excluir movimientos internos entre cuentas
+  const pagos_vis = pagos.filter(p => p.categoria !== '__INTERNO__');
   const arbol={};
-  pagos.forEach(p=>{
+  pagos_vis.forEach(p=>{
     const cat=p.categoria||'Sin clasificar';
     const sub=p.subcategoria||'Sin subcategoría';
     const det=p.detalle||'';
@@ -404,8 +407,8 @@ function renderEgresos(){
   egChart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{data:valores,backgroundColor:valores.map((_,i)=>COLS[i%COLS.length]),borderRadius:2,maxBarThickness:36}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>formatARS(c.parsed.x)}}},scales:{x:{ticks:{callback:v=>formatARS(v),font:{family:'IBM Plex Mono',size:10}},grid:{color:'#EFEAE0'}},y:{ticks:{font:{family:'Inter',size:11}},grid:{display:false}}}}});
 
   // Tabla de pagos
-  document.getElementById('eg-tablaN').textContent=`(${pagos.length})`;
-  const ord=[...pagos].sort((a,b)=>(b.fechaCobro||'').localeCompare(a.fechaCobro||''));
+  document.getElementById('eg-tablaN').textContent=`(${pagos_vis.length})`;
+  const ord=[...pagos_vis].sort((a,b)=>(b.fechaCobro||'').localeCompare(a.fechaCobro||''));
   document.getElementById('eg-tbody').innerHTML=ord.map(p=>`<tr>
     <td>${formatFecha(p.fechaCobro)}</td>
     <td>${badgeEmpresa(p.origen)}</td>
