@@ -266,7 +266,16 @@ async function consultarEgresos(){
     const resp=await fetch(`${backend}/api/pagos?desde=${desde}&hasta=${hasta||desde}`);
     if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data=await resp.json();
-    egBrutos=data.pagos.filter(p=>p.categoria!=='__INTERNO__'); // excluir movimientos internos
+    // Excluir transferencias internas entre cuentas propias
+    // Se filtra por rubro Y por concepto para no depender de la clasificación del backend
+    egBrutos=data.pagos.filter(p=>{
+      const r=(p.rubro||'').toUpperCase();
+      const c=(p.concepto||'').toUpperCase();
+      if(r.includes('MOVIMIENTO ENTRE CUENTAS')) return false;
+      if(c.includes('MOV DESDE')&&(c.includes('A CTA')||c.includes('BCO'))) return false;
+      if(p.categoria==='__INTERNO__') return false;
+      return true;
+    });
     estado.textContent=`${data.total} pagos encontrados.`;
     document.getElementById('stampFecha').textContent=`Actualizado: ${new Date().toLocaleString('es-AR')}`;
     poblarFiltrosCat(egBrutos);
