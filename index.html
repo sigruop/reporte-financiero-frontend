@@ -266,7 +266,7 @@ async function consultarEgresos(){
     const resp=await fetch(`${backend}/api/pagos?desde=${desde}&hasta=${hasta||desde}`);
     if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data=await resp.json();
-    egBrutos=data.pagos;
+    egBrutos=data.pagos.filter(p=>p.categoria!=='__INTERNO__'); // excluir movimientos internos
     estado.textContent=`${data.total} pagos encontrados.`;
     document.getElementById('stampFecha').textContent=`Actualizado: ${new Date().toLocaleString('es-AR')}`;
     poblarFiltrosCat(egBrutos);
