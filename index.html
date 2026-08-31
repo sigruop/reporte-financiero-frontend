@@ -431,6 +431,15 @@ function renderEgresos(){
   </tr>`).join('');
 }
 
+// Toggle tipo en ingresos
+function toggleIngTipo(tid){
+  const rows=document.querySelectorAll(`tr.ing-det-row[data-tipo="${tid}"]`);
+  const arr=document.getElementById(`arr-${tid}`);
+  const open=arr.textContent==='▼';
+  arr.textContent=open?'▶':'▼';
+  rows.forEach(r=>r.style.display=open?'none':'');
+}
+
 // Toggle categoría (expande/colapsa subcategorías)
 function toggleCat(catId){
   const rows=document.querySelectorAll(`tr.sub-row[data-cat="${catId}"]`);
@@ -560,17 +569,40 @@ function renderIngresos(){
   if(ingChart) ingChart.destroy();
   ingChart=new Chart(ctx2,{type:'bar',data:{labels:sucEnts.map(e=>e[0]),datasets:[{data:sucEnts.map(e=>e[1]),backgroundColor:sucEnts.map((_,i)=>COLS2[i%COLS2.length]),borderRadius:2,maxBarThickness:48}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>formatARS(c.parsed.y)}}},scales:{x:{ticks:{font:{family:'Inter',size:12}},grid:{display:false}},y:{ticks:{callback:v=>formatARS(v),font:{family:'IBM Plex Mono',size:10}},grid:{color:'#EFEAE0'}}}}});
 
-  // Tabla cobros
+  // Tabla cobros agrupada por tipo con filas expandibles
   document.getElementById('ing-tablaN').textContent=`(${cobros.length})`;
-  document.getElementById('ing-tbody').innerHTML=cobros.map(c=>`<tr>
-    <td>${formatFecha(c.fechaCobro)}</td>
-    <td>${badgeEmpresa(c.empresa)}</td>
-    <td>${c.sucursal?`<span style="font-size:12px;color:var(--muted)">${esc(c.sucursal)}</span>`:'—'}</td>
-    <td>${esc(c.cliente)}</td>
-    <td>${esc(c.formaPago)}</td>
-    <td class="num">${formatARS(c.monto)}</td>
-    <td class="small">${esc(c.concepto)}</td>
-  </tr>`).join('');
+  const porTipoTabla={};
+  cobros.forEach(c=>{
+    const t=c.tipoFactura||'Sin tipo';
+    if(!porTipoTabla[t]) porTipoTabla[t]={total:0,count:0,rows:[]};
+    porTipoTabla[t].total+=(c.monto||0);
+    porTipoTabla[t].count++;
+    porTipoTabla[t].rows.push(c);
+  });
+  let ingHtml='';
+  let ti=0;
+  Object.entries(porTipoTabla).sort((a,b)=>b[1].total-a[1].total).forEach(([tipo,datos])=>{
+    const tid=`it${ti}`;
+    ingHtml+=`<tr class="ing-tipo-row" onclick="toggleIngTipo('${tid}')" style="cursor:pointer;background:var(--paper);">
+      <td colspan="7" style="padding:11px 12px;font-weight:700;font-size:14px;">
+        <span class="arr" id="arr-${tid}">▶</span> ${esc(tipo)}
+        <span style="font-weight:400;font-size:12px;color:var(--muted);margin-left:12px">${datos.count} cobros — ${formatARS(datos.total)}</span>
+      </td>
+    </tr>`;
+    datos.rows.forEach(c=>{
+      ingHtml+=`<tr class="ing-det-row" data-tipo="${tid}" style="display:none">
+        <td>${formatFecha(c.fechaCobro)}</td>
+        <td>${badgeEmpresa(c.empresa)}</td>
+        <td>${c.sucursal?`<span style="font-size:12px;color:var(--muted)">${esc(c.sucursal)}</span>`:'—'}</td>
+        <td>${esc(c.cliente)}</td>
+        <td>${esc(c.formaPago)}</td>
+        <td class="num">${formatARS(c.monto)}</td>
+        <td class="small">${esc(c.concepto)}</td>
+      </tr>`;
+    });
+    ti++;
+  });
+  document.getElementById('ing-tbody').innerHTML=ingHtml;
 }
 
 document.getElementById('ing-empresa').addEventListener('change',()=>{ if(ingBrutos.length) renderIngresos(); });
