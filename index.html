@@ -551,7 +551,7 @@ function renderIngresos(){
     <div class="card"><div class="label">Cobros</div><div class="value">${cobros.length}</div></div>`;
 
   // Resumen por tipo: OPERATIVO / NO OPERATIVO con Fiscalización expandible
-  const TIPOS_OP=['Pagos de cuotas','Venta de ordenes','Capitación','Fiscalización'];
+  const TIPOS_OP=['Pagos de cuotas','Venta de ordenes','Capitación','Carga de Crédito','Fiscalización'];
   const porTipoRes={};
   cobros.forEach(c=>{
     const t=c.tipoFactura||'Sin tipo';
