@@ -432,12 +432,36 @@ function renderEgresos(){
 }
 
 // Toggle tipo en ingresos
+function toggleResumen(rid){
+  const rows=document.querySelectorAll(`tr.res-sub-row[data-res="${rid}"]`);
+  const arr=document.getElementById(`arr-${rid}`);
+  const open=arr.textContent==='▼';
+  arr.textContent=open?'▶':'▼';
+  rows.forEach(r=>r.style.display=open?'none':'');
+}
+function toggleIngSub(e,sid){
+  e.stopPropagation();
+  const rows=document.querySelectorAll(`tr.ing-subdet-row[data-sid="${sid}"]`);
+  const arr=document.getElementById(`arr-${sid}`);
+  const open=arr.textContent==='▼';
+  arr.textContent=open?'▶':'▼';
+  rows.forEach(r=>r.style.display=open?'none':'');
+}
 function toggleIngTipo(tid){
   const rows=document.querySelectorAll(`tr.ing-det-row[data-tipo="${tid}"]`);
   const arr=document.getElementById(`arr-${tid}`);
   const open=arr.textContent==='▼';
   arr.textContent=open?'▶':'▼';
-  rows.forEach(r=>r.style.display=open?'none':'');
+  rows.forEach(r=>{
+    r.style.display=open?'none':'';
+    // Al colapsar, resetear flechas de subtipos
+    if(open && r.classList.contains('ing-sub-row')){
+      const sid=r.dataset.sid;
+      const sa=document.getElementById(`arr-${sid}`);
+      if(sa) sa.textContent='▶';
+      document.querySelectorAll(`tr.ing-subdet-row[data-sid="${sid}"]`).forEach(d=>d.style.display='none');
+    }
+  });
 }
 
 // Toggle categoría (expande/colapsa subcategorías)
@@ -543,21 +567,46 @@ function renderIngresos(){
     <div class="card neo"><div class="label">Neoform</div><div class="value">${formatARS(neo)}</div></div>
     <div class="card"><div class="label">Cobros</div><div class="value">${cobros.length}</div></div>`;
 
-  // Resumen por tipo
-  const porTipo={};
-  cobros.forEach(c=>{ const t=c.tipoFactura||'Sin tipo'; if(!porTipo[t]) porTipo[t]={cantidad:0,total:0}; porTipo[t].cantidad++; porTipo[t].total+=(c.monto||0); });
-  const tipoEnts=Object.entries(porTipo).sort((a,b)=>b[1].total-a[1].total);
-  document.getElementById('ing-tipoN').textContent=`(${tipoEnts.length})`;
-  const totalTipo=tipoEnts.reduce((a,e)=>a+e[1].total,0);
-  document.getElementById('ing-tipo-tbody').innerHTML=tipoEnts.map(([t,d])=>`<tr>
-    <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:13px">${esc(t)}</td>
-    <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:13px;text-align:right;font-family:var(--mono)">${d.cantidad}</td>
-    <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:13px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">${formatARS(d.total)}</td>
-  </tr>`).join('')+`<tr>
-    <td style="padding:10px 12px;font-weight:700;border-top:2px solid var(--ink)">Total</td>
-    <td style="padding:10px 12px;font-weight:700;text-align:right;font-family:var(--mono);border-top:2px solid var(--ink)">${cobros.length}</td>
-    <td style="padding:10px 12px;font-weight:700;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;border-top:2px solid var(--ink)">${formatARS(totalTipo)}</td>
-  </tr>`;
+  // Resumen por tipo (con subtipos para Fiscalización)
+  const porTipoRes={};
+  cobros.forEach(c=>{
+    const t=c.tipoFactura||'Sin tipo';
+    if(!porTipoRes[t]) porTipoRes[t]={cantidad:0,total:0,subtipos:{}};
+    porTipoRes[t].cantidad++; porTipoRes[t].total+=(c.monto||0);
+    if(c.subTipo){
+      const s=c.subTipo;
+      if(!porTipoRes[t].subtipos[s]) porTipoRes[t].subtipos[s]={cantidad:0,total:0};
+      porTipoRes[t].subtipos[s].cantidad++; porTipoRes[t].subtipos[s].total+=(c.monto||0);
+    }
+  });
+  const ORDEN=['Pagos de cuotas','Venta de ordenes','Capitación','Fiscalización'];
+  const entRes=[...ORDEN.filter(t=>porTipoRes[t]),...Object.keys(porTipoRes).filter(t=>!ORDEN.includes(t))];
+  document.getElementById('ing-tipoN').textContent=`(${entRes.length})`;
+  const totalRes=entRes.reduce((a,t)=>a+porTipoRes[t].total,0);
+  let resHtml='';
+  let ri=0;
+  entRes.forEach(tipo=>{
+    const d=porTipoRes[tipo];
+    const hasSub=Object.keys(d.subtipos).length>0;
+    const rid=`rr${ri}`;
+    resHtml+=`<tr ${hasSub?`onclick="toggleResumen('${rid}')" style="cursor:pointer"`:''}  style="background:${hasSub?'var(--paper)':'#fff'}">
+      <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:13px;${hasSub?'font-weight:600':''}">${hasSub?`<span class="arr" id="arr-${rid}">▶</span> `:''}${esc(tipo)}</td>
+      <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:13px;text-align:right;font-family:var(--mono)">${d.cantidad}</td>
+      <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:13px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">${formatARS(d.total)}</td>
+    </tr>`;
+    if(hasSub){
+      Object.entries(d.subtipos).sort((a,b)=>b[1].total-a[1].total).forEach(([sub,sd])=>{
+        resHtml+=`<tr class="res-sub-row" data-res="${rid}" style="display:none">
+          <td style="padding:8px 12px 8px 32px;border-bottom:1px solid var(--paper-line);font-size:12px;color:var(--muted)">${esc(sub)}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid var(--paper-line);font-size:12px;text-align:right;font-family:var(--mono);color:var(--muted)">${sd.cantidad}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid var(--paper-line);font-size:12px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--muted)">${formatARS(sd.total)}</td>
+        </tr>`;
+      });
+    }
+    ri++;
+  });
+  resHtml+=`<tr><td style="padding:10px 12px;font-weight:700;border-top:2px solid var(--ink)">Total</td><td style="padding:10px 12px;font-weight:700;text-align:right;font-family:var(--mono);border-top:2px solid var(--ink)">${cobros.length}</td><td style="padding:10px 12px;font-weight:700;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;border-top:2px solid var(--ink)">${formatARS(totalRes)}</td></tr>`;
+  document.getElementById('ing-tipo-tbody').innerHTML=resHtml;
 
   // Gráfico por sucursal/empresa
   const porSuc={};
@@ -569,37 +618,69 @@ function renderIngresos(){
   if(ingChart) ingChart.destroy();
   ingChart=new Chart(ctx2,{type:'bar',data:{labels:sucEnts.map(e=>e[0]),datasets:[{data:sucEnts.map(e=>e[1]),backgroundColor:sucEnts.map((_,i)=>COLS2[i%COLS2.length]),borderRadius:2,maxBarThickness:48}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>formatARS(c.parsed.y)}}},scales:{x:{ticks:{font:{family:'Inter',size:12}},grid:{display:false}},y:{ticks:{callback:v=>formatARS(v),font:{family:'IBM Plex Mono',size:10}},grid:{color:'#EFEAE0'}}}}});
 
-  // Tabla cobros agrupada por tipo con filas expandibles
+  // Tabla cobros agrupada por tipo (2 niveles para Fiscalización)
   document.getElementById('ing-tablaN').textContent=`(${cobros.length})`;
   const porTipoTabla={};
   cobros.forEach(c=>{
     const t=c.tipoFactura||'Sin tipo';
-    if(!porTipoTabla[t]) porTipoTabla[t]={total:0,count:0,rows:[]};
+    if(!porTipoTabla[t]) porTipoTabla[t]={total:0,count:0,subtipos:{},rowsDirectas:[]};
     porTipoTabla[t].total+=(c.monto||0);
     porTipoTabla[t].count++;
-    porTipoTabla[t].rows.push(c);
+    if(c.subTipo){
+      const s=c.subTipo;
+      if(!porTipoTabla[t].subtipos[s]) porTipoTabla[t].subtipos[s]={total:0,count:0,rows:[]};
+      porTipoTabla[t].subtipos[s].total+=(c.monto||0);
+      porTipoTabla[t].subtipos[s].count++;
+      porTipoTabla[t].subtipos[s].rows.push(c);
+    } else {
+      porTipoTabla[t].rowsDirectas.push(c);
+    }
   });
   let ingHtml='';
   let ti=0;
-  Object.entries(porTipoTabla).sort((a,b)=>b[1].total-a[1].total).forEach(([tipo,datos])=>{
+  const ORDEN_TIPOS=['Pagos de cuotas','Venta de ordenes','Capitación','Fiscalización'];
+  const tiposOrdenados=[...ORDEN_TIPOS.filter(t=>porTipoTabla[t]),...Object.keys(porTipoTabla).filter(t=>!ORDEN_TIPOS.includes(t))];
+  tiposOrdenados.forEach(tipo=>{
+    if(!porTipoTabla[tipo]) return;
+    const datos=porTipoTabla[tipo];
     const tid=`it${ti}`;
+    const tieneSubtipos=Object.keys(datos.subtipos).length>0;
     ingHtml+=`<tr class="ing-tipo-row" onclick="toggleIngTipo('${tid}')" style="cursor:pointer;background:var(--paper);">
-      <td colspan="7" style="padding:11px 12px;font-weight:700;font-size:14px;">
+      <td colspan="7" style="padding:12px;font-weight:700;font-size:14px;border-bottom:1px solid var(--paper-line)">
         <span class="arr" id="arr-${tid}">▶</span> ${esc(tipo)}
         <span style="font-weight:400;font-size:12px;color:var(--muted);margin-left:12px">${datos.count} cobros — ${formatARS(datos.total)}</span>
       </td>
     </tr>`;
-    datos.rows.forEach(c=>{
+    // Filas directas (sin subtipo)
+    datos.rowsDirectas.forEach(c=>{
       ingHtml+=`<tr class="ing-det-row" data-tipo="${tid}" style="display:none">
-        <td>${formatFecha(c.fechaCobro)}</td>
-        <td>${badgeEmpresa(c.empresa)}</td>
+        <td>${formatFecha(c.fechaCobro)}</td><td>${badgeEmpresa(c.empresa)}</td>
         <td>${c.sucursal?`<span style="font-size:12px;color:var(--muted)">${esc(c.sucursal)}</span>`:'—'}</td>
-        <td>${esc(c.cliente)}</td>
-        <td>${esc(c.formaPago)}</td>
-        <td class="num">${formatARS(c.monto)}</td>
-        <td class="small">${esc(c.concepto)}</td>
+        <td>${esc(c.cliente)}</td><td>${esc(c.formaPago)}</td>
+        <td class="num">${formatARS(c.monto)}</td><td class="small">${esc(c.concepto)}</td>
       </tr>`;
     });
+    // Subtipos (ej: OCPACA, OSCEARA en Fiscalización)
+    if(tieneSubtipos){
+      let si=0;
+      Object.entries(datos.subtipos).sort((a,b)=>b[1].total-a[1].total).forEach(([sub,sdat])=>{
+        const sid=`is${ti}-${si}`;
+        ingHtml+=`<tr class="ing-det-row ing-sub-row" data-tipo="${tid}" data-sid="${sid}" onclick="toggleIngSub(event,'${sid}')" style="display:none;cursor:pointer;background:#faf8f4">
+          <td colspan="7" style="padding:9px 12px 9px 32px;font-weight:600;font-size:13px;color:var(--muted)">
+            <span class="arr" id="arr-${sid}">▶</span> ${esc(sub)}
+            <span style="font-weight:400;font-size:12px;margin-left:10px">${sdat.count} cobros — ${formatARS(sdat.total)}</span>
+          </td>
+        </tr>`;
+        sdat.rows.forEach(c=>{
+          ingHtml+=`<tr class="ing-det-row ing-subdet-row" data-tipo="${tid}" data-sid="${sid}" style="display:none">
+            <td>${formatFecha(c.fechaCobro)}</td><td>${badgeEmpresa(c.empresa)}</td>
+            <td>—</td><td>${esc(c.cliente)}</td><td>${esc(c.formaPago)}</td>
+            <td class="num">${formatARS(c.monto)}</td><td class="small">${esc(c.concepto)}</td>
+          </tr>`;
+        });
+        si++;
+      });
+    }
     ti++;
   });
   document.getElementById('ing-tbody').innerHTML=ingHtml;
