@@ -204,6 +204,16 @@
     </section>
 
     <section class="block">
+      <div class="block-title">Por forma de pago <span class="n" id="ing-fpN"></span></div>
+      <div style="background:#fff;border:1px solid var(--paper-line);border-radius:4px;overflow:hidden;">
+        <table class="cat-tabla">
+          <thead><tr><th>Forma de Pago</th><th class="num">Cobros</th><th class="num">Total</th></tr></thead>
+          <tbody id="ing-fp-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="block">
       <div class="block-title">Cobros por sucursal / empresa <span class="n" id="ing-empresaN"></span></div>
       <div class="chart-card"><canvas id="ing-chart"></canvas></div>
     </section>
@@ -591,6 +601,26 @@ function renderIngresos(){
   resHtml+=`<tr><td colspan="3" style="padding:8px 12px;font-size:12px;color:var(--muted);font-style:italic;border-bottom:1px solid var(--paper-line)">Sin registros</td></tr>`;
   resHtml+=`<tr><td style="padding:10px 12px;font-weight:700;border-top:2px solid var(--ink)">Total</td><td style="padding:10px 12px;font-weight:700;text-align:right;font-family:var(--mono);border-top:2px solid var(--ink)">${cobros.length}</td><td style="padding:10px 12px;font-weight:700;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;border-top:2px solid var(--ink)">${formatARS(totalRes)}</td></tr>`;
   document.getElementById('ing-tipo-tbody').innerHTML=resHtml;
+
+  // Resumen por forma de pago
+  const porFP={};
+  cobros.forEach(c=>{
+    const fp=c.formaPago||'Sin especificar';
+    if(!porFP[fp]) porFP[fp]={cantidad:0,total:0};
+    porFP[fp].cantidad++; porFP[fp].total+=(c.monto||0);
+  });
+  const fpEnts=Object.entries(porFP).sort((a,b)=>b[1].total-a[1].total);
+  document.getElementById('ing-fpN').textContent=`(${fpEnts.length})`;
+  const totalFP=fpEnts.reduce((a,e)=>a+e[1].total,0);
+  document.getElementById('ing-fp-tbody').innerHTML=fpEnts.map(([fp,d])=>`<tr>
+    <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:13px">${esc(fp)}</td>
+    <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:13px;text-align:right;font-family:var(--mono)">${d.cantidad}</td>
+    <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:13px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">${formatARS(d.total)}</td>
+  </tr>`).join('')+`<tr>
+    <td style="padding:10px 12px;font-weight:700;border-top:2px solid var(--ink)">Total</td>
+    <td style="padding:10px 12px;font-weight:700;text-align:right;font-family:var(--mono);border-top:2px solid var(--ink)">${cobros.length}</td>
+    <td style="padding:10px 12px;font-weight:700;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;border-top:2px solid var(--ink)">${formatARS(totalFP)}</td>
+  </tr>`;
 
   // Gráfico por sucursal/empresa
   const porSuc={};
