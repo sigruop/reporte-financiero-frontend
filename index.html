@@ -597,8 +597,24 @@ function renderIngresos(){
     });
     ri++;
   });
+  // NO OPERATIVO: cualquier tipo que no esté en TIPOS_OP
+  const tiposNoOp=Object.keys(porTipoRes).filter(t=>!TIPOS_OP.includes(t));
   resHtml+=`<tr><td colspan="3" style="${hdrStyle}">No Operativo</td></tr>`;
-  resHtml+=`<tr><td colspan="3" style="padding:8px 12px;font-size:12px;color:var(--muted);font-style:italic;border-bottom:1px solid var(--paper-line)">Sin registros</td></tr>`;
+  if(tiposNoOp.length===0){
+    resHtml+=`<tr><td colspan="3" style="padding:8px 12px;font-size:12px;color:var(--muted);font-style:italic;border-bottom:1px solid var(--paper-line)">Sin registros</td></tr>`;
+  } else {
+    tiposNoOp.forEach(tipo=>{
+      const d=porTipoRes[tipo];
+      const hasSub=Object.keys(d.subtipos||{}).length>0;
+      const rid=`rr${ri}`;
+      resHtml+=`<tr ${hasSub?`onclick="toggleResumen('${rid}')" style="cursor:pointer;background:var(--paper)"`:''}>
+        <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:13px;${hasSub?'font-weight:600':''}">${hasSub?`<span class="arr" id="arr-${rid}">&#9658; </span>`:''}${esc(tipo)}</td>
+        <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:13px;text-align:right;font-family:var(--mono)">${d.cantidad}</td>
+        <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:13px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">${formatARS(d.total)}</td>
+      </tr>`;
+      ri++;
+    });
+  }
   resHtml+=`<tr><td style="padding:10px 12px;font-weight:700;border-top:2px solid var(--ink)">Total</td><td style="padding:10px 12px;font-weight:700;text-align:right;font-family:var(--mono);border-top:2px solid var(--ink)">${cobros.length}</td><td style="padding:10px 12px;font-weight:700;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;border-top:2px solid var(--ink)">${formatARS(totalRes)}</td></tr>`;
   document.getElementById('ing-tipo-tbody').innerHTML=resHtml;
 
@@ -665,9 +681,31 @@ function renderIngresos(){
     });
     ti++;
   });
-  // Encabezado NO OPERATIVO en tabla (vacío por ahora)
+  // NO OPERATIVO en tabla detallada
   ingHtml+=`<tr><td colspan="7" style="padding:8px 12px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);background:var(--paper);border-bottom:1px solid var(--paper-line)">No Operativo</td></tr>`;
-  ingHtml+=`<tr><td colspan="7" style="padding:8px 12px;font-size:12px;color:var(--muted);font-style:italic">Sin registros</td></tr>`;
+  const tiposNoOpD=Object.keys(porTipoTabla).filter(t=>!ORDEN_TIPOS.includes(t));
+  if(tiposNoOpD.length===0){
+    ingHtml+=`<tr><td colspan="7" style="padding:8px 12px;font-size:12px;color:var(--muted);font-style:italic">Sin registros</td></tr>`;
+  } else {
+    tiposNoOpD.forEach(tipo=>{
+      const datos=porTipoTabla[tipo];
+      const tid=`it${ti}`;
+      ingHtml+=`<tr class="ing-tipo-row" onclick="toggleIngTipo('${tid}')" style="cursor:pointer;background:#faf8f4;">
+        <td colspan="7" style="padding:11px 12px;font-size:13px;font-weight:600;border-bottom:1px solid var(--paper-line)">
+          <span class="arr" id="arr-${tid}">&#9658;</span> ${esc(tipo)}
+          <span style="font-weight:400;font-size:12px;color:var(--muted);margin-left:12px">${datos.count} cobros — ${formatARS(datos.total)}</span>
+        </td>
+      </tr>`;
+      datos.rowsDirectas.forEach(c=>{
+        ingHtml+=`<tr class="ing-det-row" data-tipo="${tid}" style="display:none">
+          <td>${formatFecha(c.fechaCobro)}</td><td>${badgeEmpresa(c.empresa)}</td>
+          <td>—</td><td>${esc(c.cliente)}</td><td>${esc(c.formaPago)}</td>
+          <td class="num">${formatARS(c.monto)}</td><td class="small">${esc(c.concepto)}</td>
+        </tr>`;
+      });
+      ti++;
+    });
+  }
   document.getElementById('ing-tbody').innerHTML=ingHtml;
 }
 
