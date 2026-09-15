@@ -573,7 +573,7 @@ function renderIngresos(){
       porTipoRes[t].subtipos[s].cantidad++; porTipoRes[t].subtipos[s].total+=(c.monto||0);
     }
   });
-  const entResOp=[...TIPOS_OP.filter(t=>porTipoRes[t]),...Object.keys(porTipoRes).filter(t=>!TIPOS_OP.includes(t))];
+  const entResOp=TIPOS_OP.filter(t=>porTipoRes[t]); // Solo tipos operativos
   const totalRes=entResOp.reduce((a,t)=>a+porTipoRes[t].total,0);
   document.getElementById('ing-tipoN').textContent=`(${entResOp.length})`;
   const hdrStyle='padding:7px 12px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);background:var(--paper);border-bottom:1px solid var(--paper-line)';
