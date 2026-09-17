@@ -181,8 +181,17 @@
         </select>
       </div>
       <div class="field">
-        <label>Sucursal CEMEI</label>
-        <select id="ing-sucursal"><option value="">Todas</option></select>
+        <label>Origen / Sucursal</label>
+        <select id="ing-sucursal"><option value="">Todos</option></select>
+      </div>
+      <div class="field">
+        <label>Tipo concepto</label>
+        <select id="ing-tipoconcepto">
+          <option value="">Todos</option>
+          <option value="Particular">Particular</option>
+          <option value="Medicamentos">Medicamentos</option>
+          <option value="Adicionales / Plus">Adicionales / Plus</option>
+        </select>
       </div>
       <div class="field" style="min-width:210px;">
         <label>URL del backend</label>
@@ -222,7 +231,7 @@
       <div class="block-title">Detalle de cobros <span class="n" id="ing-tablaN"></span></div>
       <div class="table-scroll">
         <table class="pagos-tabla">
-          <thead><tr><th>Fecha Cobro</th><th>Empresa</th><th>Obra Social</th><th>Cliente</th><th>Forma de Pago</th><th class="num">Monto</th><th>Concepto</th></tr></thead>
+          <thead><tr><th>Fecha Cobro</th><th>Empresa</th><th>Obra Social</th><th>Tipo</th><th>Cliente</th><th>Forma de Pago</th><th class="num">Monto</th><th>Concepto</th></tr></thead>
           <tbody id="ing-tbody"></tbody>
         </table>
       </div>
@@ -540,9 +549,11 @@ function poblarFiltroSucursal(cobros){
 function filtrarIngresos(){
   const emp=document.getElementById('ing-empresa').value;
   const suc=document.getElementById('ing-sucursal').value;
+  const tc=document.getElementById('ing-tipoconcepto').value;
   return ingBrutos.filter(c=>{
     if(emp && empresaKey(c.empresa)!==emp) return false;
     if(suc && c.sucursal!==suc) return false;
+    if(tc && c.tipoConcepto!==tc) return false;
     return true;
   });
 }
@@ -675,6 +686,7 @@ function renderIngresos(){
         <td>${formatFecha(c.fechaCobro)}</td>
         <td>${badgeEmpresa(c.empresa)}</td>
         <td>${(c.obraSocial||c.sucursal)?`<span style="font-size:12px;color:var(--muted)">${esc(c.obraSocial||c.sucursal)}</span>`:'—'}</td>
+        <td><span style="font-size:11px;color:var(--muted)">${esc(c.tipoConcepto||'—')}</span></td>
         <td>${esc(c.cliente)}</td>
         <td>${esc(c.formaPago)}</td>
         <td class="num">${formatARS(c.monto)}</td>
@@ -701,7 +713,8 @@ function renderIngresos(){
       (datos.rows||[]).forEach(c=>{
         ingHtml+=`<tr class="ing-det-row" data-tipo="${tid}" style="display:none">
           <td>${formatFecha(c.fechaCobro)}</td><td>${badgeEmpresa(c.empresa)}</td>
-          <td>—</td><td>${esc(c.cliente)}</td><td>${esc(c.formaPago)}</td>
+          <td>—</td><td><span style="font-size:11px;color:var(--muted)">—</span></td>
+          <td>${esc(c.cliente)}</td><td>${esc(c.formaPago)}</td>
           <td class="num">${formatARS(c.monto)}</td><td class="small">${esc(c.concepto)}</td>
         </tr>`;
       });
@@ -713,6 +726,7 @@ function renderIngresos(){
 
 document.getElementById('ing-empresa').addEventListener('change',()=>{ if(ingBrutos.length) renderIngresos(); });
 document.getElementById('ing-sucursal').addEventListener('change',()=>{ if(ingBrutos.length) renderIngresos(); });
+document.getElementById('ing-tipoconcepto').addEventListener('change',()=>{ if(ingBrutos.length) renderIngresos(); });
 
 // ══════════════════════════════════════════════════════
 // INIT
