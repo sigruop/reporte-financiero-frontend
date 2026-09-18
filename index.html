@@ -41,6 +41,8 @@
   .field input:focus,.field select:focus{outline:2px solid var(--ink);outline-offset:1px;}
   .btn{font-family:var(--sans);font-weight:600;font-size:13px;background:var(--ink);color:var(--paper);border:none;border-radius:3px;padding:9px 20px;cursor:pointer;}
   .btn:hover{background:#0e1a20;}
+  .btn-xs{font-family:var(--sans);font-weight:600;font-size:11.5px;background:#fff;color:var(--ink);border:1px solid var(--paper-line);border-radius:3px;padding:5px 10px;cursor:pointer;margin-left:auto;}
+  .btn-xs:hover{background:var(--paper);border-color:var(--ink);}
   .estado{font-family:var(--mono);font-size:12px;color:var(--muted);margin:-8px 0 18px;min-height:16px;}
   .estado.error{color:var(--cemei);}
   .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--paper-line);border:1px solid var(--paper-line);margin-bottom:28px;}
@@ -156,7 +158,7 @@
     </section>
 
     <section class="block">
-      <div class="block-title">Pagos <span class="n" id="eg-tablaN"></span></div>
+      <div class="block-title">Pagos <span class="n" id="eg-tablaN"></span><button class="btn-xs" onclick="exportarEgresosCSV()">⬇ Excel</button></div>
       <div class="table-scroll">
         <table class="pagos-tabla">
           <thead><tr><th>Fecha</th><th>Empresa</th><th>Categoría</th><th>Subcategoría</th><th>Proveedor</th><th class="num">Importe</th><th>Concepto</th></tr></thead>
@@ -232,7 +234,7 @@
     </section>
 
     <section class="block">
-      <div class="block-title">Detalle de cobros <span class="n" id="ing-tablaN"></span></div>
+      <div class="block-title">Detalle de cobros <span class="n" id="ing-tablaN"></span><button class="btn-xs" onclick="exportarIngresosCSV()">⬇ Excel</button></div>
       <div class="table-scroll">
         <table class="pagos-tabla">
           <thead><tr><th>Fecha Cobro</th><th>Empresa</th><th>Obra Social</th><th>Tipo</th><th>Cliente</th><th>Forma de Pago</th><th class="num">Monto</th><th>Concepto</th></tr></thead>
@@ -257,6 +259,26 @@ const primerDiaMes=()=>{ const d=new Date(); return new Date(d.getFullYear(),d.g
 const formatARS=n=>new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:0}).format(n||0);
 const formatFecha=iso=>{ if(!iso) return '—'; const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; };
 const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// Descarga CSV con separador ";" y coma decimal — así Excel en es-AR lo abre directo, columnas
+// bien separadas y los montos como número (no como texto).
+function descargarCSV(filas, columnas, nombreBase){
+  const sep=';';
+  const escapeCampo=v=>{
+    const s=(v===null||v===undefined)?'':String(v);
+    return /[";\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+  };
+  const numAR=n=>(typeof n==='number'?n:parseFloat(n)||0).toFixed(2).replace('.',',');
+  const cabecera=columnas.map(c=>escapeCampo(c.header)).join(sep);
+  const filasCSV=filas.map(f=>columnas.map(c=>escapeCampo(c.numero?numAR(c.get(f)):c.get(f))).join(sep));
+  const csv='\uFEFF'+[cabecera,...filasCSV].join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`${nombreBase}_${hoyISO()}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 function empresaKey(origen){
   if(!origen) return 'SIG';
@@ -452,6 +474,25 @@ function renderEgresos(){
     <td class="num">${formatARS(p.importe)}</td>
     <td class="small">${esc(p.concepto)}</td>
   </tr>`).join('');
+}
+
+function exportarEgresosCSV(){
+  const pagos=filtrarEgresos().filter(p=>p.categoria!=='__INTERNO__');
+  descargarCSV(pagos,[
+    {header:'Fecha',get:p=>formatFecha(p.fechaCobro)},
+    {header:'Empresa',get:p=>p.origen||''},
+    {header:'Unidad',get:p=>p.unidad||''},
+    {header:'Categoría',get:p=>p.categoria||''},
+    {header:'Subcategoría',get:p=>p.subcategoria||''},
+    {header:'Detalle',get:p=>p.detalle||''},
+    {header:'Proveedor',get:p=>p.proveedor||''},
+    {header:'Banco',get:p=>p.banco||''},
+    {header:'Rubro',get:p=>p.rubro||''},
+    {header:'Importe',get:p=>p.importe||0,numero:true},
+    {header:'Concepto',get:p=>p.concepto||''},
+    {header:'Cobrado',get:p=>p.cobrado||''},
+    {header:'ID Pago',get:p=>p.idPago||''},
+  ],'egresos_detalle');
 }
 
 // Toggle tipo en ingresos
@@ -730,6 +771,25 @@ function renderIngresos(){
     });
   }
   document.getElementById('ing-tbody').innerHTML=ingHtml;
+}
+
+function exportarIngresosCSV(){
+  const cobros=filtrarIngresos();
+  descargarCSV(cobros,[
+    {header:'Fecha Cobro',get:c=>formatFecha(c.fechaCobro)},
+    {header:'Empresa',get:c=>c.empresa||''},
+    {header:'Tipo Factura',get:c=>c.tipoFactura||''},
+    {header:'Sub Tipo',get:c=>c.subTipo||''},
+    {header:'Sucursal',get:c=>c.sucursal||''},
+    {header:'Origen',get:c=>c.origenFactura||''},
+    {header:'Tipo Concepto',get:c=>c.tipoConcepto||''},
+    {header:'Cliente',get:c=>c.cliente||''},
+    {header:'Obra Social',get:c=>c.obraSocial||''},
+    {header:'Forma de Pago',get:c=>c.formaPago||''},
+    {header:'Comprobante',get:c=>c.comprobante||''},
+    {header:'Monto',get:c=>c.monto||0,numero:true},
+    {header:'Concepto',get:c=>c.concepto||''},
+  ],'ingresos_detalle');
 }
 
 document.getElementById('ing-empresa').addEventListener('change',()=>{ if(ingBrutos.length) renderIngresos(); });
