@@ -540,7 +540,9 @@ async function consultarIngresos(){
 }
 
 function poblarFiltroSucursal(cobros){
-  const suc=new Set(cobros.filter(c=>c.sucursal).map(c=>c.sucursal));
+  // Excluir valores que son tipos de concepto, no sucursales reales
+  const TIPOS_CONCEPTO=new Set(['Particular','Medicamentos','Adicionales / Plus','Prefacturas']);
+  const suc=new Set(cobros.filter(c=>c.sucursal && !TIPOS_CONCEPTO.has(c.sucursal)).map(c=>c.sucursal));
   const sel=document.getElementById('ing-sucursal');
   const val=sel.value;
   sel.innerHTML='<option value="">Todas</option>';
