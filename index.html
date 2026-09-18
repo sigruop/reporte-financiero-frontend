@@ -232,11 +232,6 @@
     </section>
 
     <section class="block">
-      <div class="block-title">Cobros por sucursal / empresa <span class="n" id="ing-empresaN"></span></div>
-      <div class="chart-card"><canvas id="ing-chart"></canvas></div>
-    </section>
-
-    <section class="block">
       <div class="block-title">Detalle de cobros <span class="n" id="ing-tablaN"></span></div>
       <div class="table-scroll">
         <table class="pagos-tabla">
@@ -254,7 +249,7 @@
 // ══════════════════════════════════════════════════════
 // HELPERS
 // ══════════════════════════════════════════════════════
-let egChart=null, ingChart=null;
+let egChart=null;
 let egBrutos=[], ingBrutos=[];
 
 const hoyISO=()=>new Date().toISOString().slice(0,10);
@@ -671,16 +666,6 @@ function renderIngresos(){
     <td style="padding:10px 12px;font-weight:700;text-align:right;font-family:var(--mono);border-top:2px solid var(--ink)">${cobros.length}</td>
     <td style="padding:10px 12px;font-weight:700;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;border-top:2px solid var(--ink)">${formatARS(totalFP)}</td>
   </tr>`;
-
-  // Gráfico por sucursal/empresa
-  const porSuc={};
-  cobros.forEach(c=>{ const k=c.sucursal||c.empresa||'Sin clasificar'; porSuc[k]=(porSuc[k]||0)+(c.monto||0); });
-  const sucEnts=Object.entries(porSuc).sort((a,b)=>b[1]-a[1]);
-  document.getElementById('ing-empresaN').textContent=`(${sucEnts.length})`;
-  const COLS2=['#0F6657','#B5563C','#2E5E8E','#7A5E2E','#5B3E8E','#1A6B6B'];
-  const ctx2=document.getElementById('ing-chart').getContext('2d');
-  if(ingChart) ingChart.destroy();
-  ingChart=new Chart(ctx2,{type:'bar',data:{labels:sucEnts.map(e=>e[0]),datasets:[{data:sucEnts.map(e=>e[1]),backgroundColor:sucEnts.map((_,i)=>COLS2[i%COLS2.length]),borderRadius:2,maxBarThickness:48}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>formatARS(c.parsed.y)}}},scales:{x:{ticks:{font:{family:'Inter',size:12}},grid:{display:false}},y:{ticks:{callback:v=>formatARS(v),font:{family:'IBM Plex Mono',size:10}},grid:{color:'#EFEAE0'}}}}});
 
   // Tabla cobros agrupada por tipo con filas expandibles
   document.getElementById('ing-tablaN').textContent=`(${cobros.length})`;
