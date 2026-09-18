@@ -181,8 +181,12 @@
         </select>
       </div>
       <div class="field">
-        <label>Origen / Sucursal</label>
-        <select id="ing-sucursal"><option value="">Todos</option></select>
+        <label>Sucursal</label>
+        <select id="ing-sucursal"><option value="">Todas</option></select>
+      </div>
+      <div class="field">
+        <label>Origen</label>
+        <select id="ing-origen"><option value="">Todos</option></select>
       </div>
       <div class="field">
         <label>Tipo concepto</label>
@@ -197,6 +201,10 @@
       <div class="field" style="min-width:210px;">
         <label>URL del backend</label>
         <input type="text" id="ing-backend" value="https://reporte-financiero-backend.onrender.com"/>
+      </div>
+      <div class="field" style="min-width:220px;">
+        <label>Buscar</label>
+        <input type="text" id="ing-buscar" placeholder="Cliente, concepto, empresa..." oninput="if(ingBrutos.length) renderIngresos()"/>
       </div>
       <button class="btn" onclick="consultarIngresos()">Consultar</button>
     </div>
@@ -540,23 +548,35 @@ async function consultarIngresos(){
 }
 
 function poblarFiltroSucursal(cobros){
-  // Excluir valores que son tipos de concepto, no sucursales reales
-  const TIPOS_CONCEPTO=new Set(['Particular','Medicamentos','Adicionales / Plus','Prefacturas']);
-  const suc=new Set(cobros.filter(c=>c.sucursal && !TIPOS_CONCEPTO.has(c.sucursal)).map(c=>c.sucursal));
+  // Sucursales físicas
+  const suc=new Set(cobros.filter(c=>c.sucursal).map(c=>c.sucursal));
   const sel=document.getElementById('ing-sucursal');
   const val=sel.value;
   sel.innerHTML='<option value="">Todas</option>';
   [...suc].sort().forEach(s=>{ const o=document.createElement('option'); o.value=s; o.textContent=s; if(s===val)o.selected=true; sel.appendChild(o); });
+  // Orígenes de facturación
+  const ori=new Set(cobros.filter(c=>c.origenFactura).map(c=>c.origenFactura));
+  const selO=document.getElementById('ing-origen');
+  const valO=selO.value;
+  selO.innerHTML='<option value="">Todos</option>';
+  [...ori].sort().forEach(s=>{ const o=document.createElement('option'); o.value=s; o.textContent=s; if(s===valO)o.selected=true; selO.appendChild(o); });
 }
 
 function filtrarIngresos(){
   const emp=document.getElementById('ing-empresa').value;
   const suc=document.getElementById('ing-sucursal').value;
+  const ori=document.getElementById('ing-origen').value;
   const tc=document.getElementById('ing-tipoconcepto').value;
+  const q=(document.getElementById('ing-buscar').value||'').toUpperCase().trim();
   return ingBrutos.filter(c=>{
     if(emp && empresaKey(c.empresa)!==emp) return false;
     if(suc && c.sucursal!==suc) return false;
+    if(ori && c.origenFactura!==ori) return false;
     if(tc && c.tipoConcepto!==tc) return false;
+    if(q){
+      const haystack=[c.cliente,c.empresa,c.concepto,c.formaPago,c.origenFactura||'',c.sucursal||''].join(' ').toUpperCase();
+      if(!haystack.includes(q)) return false;
+    }
     return true;
   });
 }
@@ -729,6 +749,7 @@ function renderIngresos(){
 
 document.getElementById('ing-empresa').addEventListener('change',()=>{ if(ingBrutos.length) renderIngresos(); });
 document.getElementById('ing-sucursal').addEventListener('change',()=>{ if(ingBrutos.length) renderIngresos(); });
+document.getElementById('ing-origen').addEventListener('change',()=>{ if(ingBrutos.length) renderIngresos(); });
 document.getElementById('ing-tipoconcepto').addEventListener('change',()=>{ if(ingBrutos.length) renderIngresos(); });
 
 // ══════════════════════════════════════════════════════
