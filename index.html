@@ -787,7 +787,8 @@ function exportarIngresosCSV(){
     {header:'Obra Social',get:c=>c.obraSocial||''},
     {header:'Forma de Pago',get:c=>c.formaPago||''},
     {header:'Comprobante',get:c=>c.comprobante||''},
-    {header:'Monto',get:c=>c.monto||0,numero:true},
+    {header:'Monto Facturado',get:c=>c.montoFacturado??c.monto??0,numero:true},
+    {header:'Monto Cobrado',get:c=>c.monto||0,numero:true},
     {header:'Concepto',get:c=>c.concepto||''},
   ],'ingresos_detalle');
 }
