@@ -201,6 +201,7 @@
           <option value="Salud Integral">Salud Integral</option>
           <option value="UTA">UTA</option>
           <option value="Medicina Laboral">Medicina Laboral</option>
+          <option value="OSPES">OSPES</option>
         </select>
       </div>
       <div class="field" style="min-width:210px;">
@@ -714,7 +715,7 @@ function renderIngresos(){
   // Día" (así lo pidió Gustavo, la clasificación de fondo no cambia, solo la etiqueta acá).
   const ORDEN_CAT=['Convenios Directos','ACLISA','Particular','Plus','Hospital de Día','Seña/Descartable'];
   function categoriaExcel(c){
-    if(['Salud Integral','UTA','Medicina Laboral'].includes(c.tipoConcepto)) return {cat:'Convenios Directos',sub:c.tipoConcepto};
+    if(['Salud Integral','UTA','Medicina Laboral','OSPES'].includes(c.tipoConcepto)) return {cat:'Convenios Directos',sub:c.tipoConcepto};
     if((c.origenFactura||'').toLowerCase().includes('prefactura')) return {cat:'ACLISA',sub:null};
     if(c.tipoConcepto==='Medicamentos') return {cat:'Hospital de Día',sub:null};
     if(c.tipoConcepto==='Adicionales / Plus') return {cat:'Plus',sub:null};
