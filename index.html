@@ -632,7 +632,7 @@ function filtrarIngresos(){
     if(ori && c.origenFactura!==ori) return false;
     if(tc && c.tipoConcepto!==tc) return false;
     if(q){
-      const haystack=[c.cliente,c.empresa,c.concepto,c.formaPago,c.origenFactura||'',c.sucursal||''].join(' ').toUpperCase();
+      const haystack=[c.cliente,c.empresa,c.concepto,c.formaPago,c.origenFactura||'',c.sucursal||'',c.tipoConcepto||''].join(' ').toUpperCase();
       if(!haystack.includes(q)) return false;
     }
     return true;
