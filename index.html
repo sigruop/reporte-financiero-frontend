@@ -227,6 +227,16 @@
     </section>
 
     <section class="block">
+      <div class="block-title">Resumen por categoría <span class="n" id="ing-catN"></span></div>
+      <div style="background:#fff;border:1px solid var(--paper-line);border-radius:4px;overflow:hidden;">
+        <table class="cat-tabla">
+          <thead><tr><th>Categoría</th><th class="num">Cobros</th><th class="num">Total</th><th class="num">%</th></tr></thead>
+          <tbody id="ing-cat-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="block">
       <div class="block-title">Por forma de pago <span class="n" id="ing-fpN"></span></div>
       <div style="background:#fff;border:1px solid var(--paper-line);border-radius:4px;overflow:hidden;">
         <table class="cat-tabla">
@@ -506,6 +516,13 @@ function toggleResumen(rid){
   arr.innerHTML=isOpen?'&#9658; ':'&#9660; ';
   rows.forEach(r=>r.style.display=isOpen?'none':'');
 }
+function toggleCategoria(rid){
+  const rows=document.querySelectorAll(`tr.cc-sub-row[data-cc="${rid}"]`);
+  const arr=document.getElementById(`arr-${rid}`);
+  const isOpen=arr.innerHTML.includes('&#9660;');
+  arr.innerHTML=isOpen?'&#9658; ':'&#9660; ';
+  rows.forEach(r=>r.style.display=isOpen?'none':'');
+}
 function toggleIngTipo(tid){
   const rows=document.querySelectorAll(`tr.ing-det-row[data-tipo="${tid}"]`);
   const arr=document.getElementById(`arr-${tid}`);
@@ -690,6 +707,66 @@ function renderIngresos(){
   }
   resHtml+=`<tr><td style="padding:10px 12px;font-weight:700;border-top:2px solid var(--ink)">Total</td><td style="padding:10px 12px;font-weight:700;text-align:right;font-family:var(--mono);border-top:2px solid var(--ink)">${cobros.length}</td><td style="padding:10px 12px;font-weight:700;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;border-top:2px solid var(--ink)">${formatARS(totalRes)}</td></tr>`;
   document.getElementById('ing-tipo-tbody').innerHTML=resHtml;
+
+  // Resumen por categoría — Sucursal > Categoría (estilo Excel de Presupuesto Financiero) >
+  // sub-ítem de Convenios Directos. "Prefacturas" se muestra como "ACLISA" (por ahora todo lo
+  // que factura con origen Prefacturas es ACLISA); "Medicamentos" se muestra como "Hospital de
+  // Día" (así lo pidió Gustavo, la clasificación de fondo no cambia, solo la etiqueta acá).
+  const ORDEN_CAT=['Convenios Directos','ACLISA','Particular','Plus','Hospital de Día','Seña/Descartable'];
+  function categoriaExcel(c){
+    if(['Salud Integral','UTA','Medicina Laboral'].includes(c.tipoConcepto)) return {cat:'Convenios Directos',sub:c.tipoConcepto};
+    if((c.origenFactura||'').toLowerCase().includes('prefactura')) return {cat:'ACLISA',sub:null};
+    if(c.tipoConcepto==='Medicamentos') return {cat:'Hospital de Día',sub:null};
+    if(c.tipoConcepto==='Adicionales / Plus') return {cat:'Plus',sub:null};
+    return {cat:'Particular',sub:null};
+  }
+  const porSucCat={};
+  cobros.forEach(c=>{
+    const suc=c.sucursal||'Sin sucursal';
+    const {cat,sub}=categoriaExcel(c);
+    if(!porSucCat[suc]) porSucCat[suc]={total:0,cantidad:0,cats:{}};
+    porSucCat[suc].total+=(c.monto||0); porSucCat[suc].cantidad++;
+    if(!porSucCat[suc].cats[cat]) porSucCat[suc].cats[cat]={total:0,cantidad:0,subs:{}};
+    porSucCat[suc].cats[cat].total+=(c.monto||0); porSucCat[suc].cats[cat].cantidad++;
+    if(sub){
+      if(!porSucCat[suc].cats[cat].subs[sub]) porSucCat[suc].cats[cat].subs[sub]={total:0,cantidad:0};
+      porSucCat[suc].cats[cat].subs[sub].total+=(c.monto||0); porSucCat[suc].cats[cat].subs[sub].cantidad++;
+    }
+  });
+  const sucOrden=Object.keys(porSucCat).sort((a,b)=>porSucCat[b].total-porSucCat[a].total);
+  document.getElementById('ing-catN').textContent=`(${sucOrden.length})`;
+  let catHtml=''; let ci=0;
+  sucOrden.forEach(suc=>{
+    const sd=porSucCat[suc];
+    catHtml+=`<tr><td colspan="4" style="padding:8px 12px;font-weight:700;background:var(--paper);border-bottom:1px solid var(--paper-line);font-size:12.5px;text-transform:uppercase;letter-spacing:0.04em">${esc(suc)} — ${formatARS(sd.total)}</td></tr>`;
+    const catsOrden=Object.keys(sd.cats).sort((a,b)=>{
+      const ia=ORDEN_CAT.indexOf(a), ib=ORDEN_CAT.indexOf(b);
+      return (ia<0?99:ia)-(ib<0?99:ib);
+    });
+    catsOrden.forEach(cat=>{
+      const cd=sd.cats[cat];
+      const hasSub=Object.keys(cd.subs).length>0;
+      const rid=`cc${ci}`;
+      const pct=sd.total?(cd.total/sd.total*100).toFixed(1):'0.0';
+      catHtml+=`<tr ${hasSub?`onclick="toggleCategoria('${rid}')" style="cursor:pointer"`:''}>
+        <td style="padding:8px 12px 8px 22px;border-bottom:1px solid var(--paper-line);font-size:13px;${hasSub?'font-weight:600':''}">${hasSub?`<span class="arr" id="arr-${rid}">&#9658; </span>`:''}${esc(cat)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid var(--paper-line);font-size:13px;text-align:right;font-family:var(--mono)">${cd.cantidad}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid var(--paper-line);font-size:13px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">${formatARS(cd.total)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid var(--paper-line);font-size:12px;text-align:right;font-family:var(--mono);color:var(--muted)">${pct}%</td>
+      </tr>`;
+      if(hasSub) Object.entries(cd.subs).sort((a,b)=>b[1].total-a[1].total).forEach(([sub,subd])=>{
+        catHtml+=`<tr class="cc-sub-row" data-cc="${rid}" style="display:none">
+          <td style="padding:6px 12px 6px 40px;border-bottom:1px solid var(--paper-line);font-size:12px;color:var(--muted)">${esc(sub)}</td>
+          <td style="padding:6px 12px;border-bottom:1px solid var(--paper-line);font-size:12px;text-align:right;font-family:var(--mono);color:var(--muted)">${subd.cantidad}</td>
+          <td style="padding:6px 12px;border-bottom:1px solid var(--paper-line);font-size:12px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--muted)">${formatARS(subd.total)}</td>
+          <td style="border-bottom:1px solid var(--paper-line)"></td>
+        </tr>`;
+      });
+      ci++;
+    });
+  });
+  if(sucOrden.length===0) catHtml=`<tr><td colspan="4" style="padding:8px 12px;font-size:12px;color:var(--muted);font-style:italic">Sin registros</td></tr>`;
+  document.getElementById('ing-cat-tbody').innerHTML=catHtml;
 
   // Resumen por forma de pago
   const porFP={};
