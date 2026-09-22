@@ -202,6 +202,7 @@
           <option value="UTA">UTA</option>
           <option value="Medicina Laboral">Medicina Laboral</option>
           <option value="OSPES">OSPES</option>
+          <option value="Seña / Descartable">Seña / Descartable</option>
         </select>
       </div>
       <div class="field" style="min-width:210px;">
@@ -719,6 +720,7 @@ function renderIngresos(){
     if((c.origenFactura||'').toLowerCase().includes('prefactura')) return {cat:'ACLISA',sub:null};
     if(c.tipoConcepto==='Medicamentos') return {cat:'Hospital de Día',sub:null};
     if(c.tipoConcepto==='Adicionales / Plus') return {cat:'Plus',sub:null};
+    if(c.tipoConcepto==='Seña / Descartable') return {cat:'Seña/Descartable',sub:null};
     // Antes cualquier cosa sin match caía en "Particular" — eso mezclaba origen "Manual" (u otro
     // valor explícito que no sea Particulares) con los realmente particulares y desfasaba el total
     // contra el filtro de Origen. Ahora solo entra acá cuando el origen es Particulares o no viene
