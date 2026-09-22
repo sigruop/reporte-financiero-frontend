@@ -9,83 +9,83 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
   :root{
-    --ink:#1C2B33;--paper:#F7F5F0;--paper-line:#DAD4C6;
+    --ink:#1C2B33;--paper:#F9F7F3;--paper-line:#E7E1D3;
     --sig:#0F6657;--sig-soft:#E4F0EC;
     --cemei:#B5563C;--cemei-soft:#F6E8E2;
     --neo:#2E5E8E;--neo-soft:#E2ECF6;
-    --muted:#6B6458;
+    --muted:#75705F;
     --display:'Source Serif 4',Georgia,serif;
     --mono:'IBM Plex Mono',ui-monospace,monospace;
     --sans:'Inter',system-ui,sans-serif;
   }
   *{box-sizing:border-box;}
-  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14.5px;line-height:1.5;-webkit-font-smoothing:antialiased;}
   .wrap{max-width:1180px;margin:0 auto;padding:32px 24px 80px;}
   header.masthead{border-bottom:2px solid var(--ink);padding-bottom:16px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;}
-  .masthead-title{font-family:var(--display);font-weight:600;font-size:30px;letter-spacing:-0.01em;}
-  .masthead-sub{font-family:var(--mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-top:4px;}
-  .masthead-stamp{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right;line-height:1.7;}
+  .masthead-title{font-family:var(--display);font-weight:600;font-size:32px;letter-spacing:-0.01em;}
+  .masthead-sub{font-family:var(--mono);font-size:12.5px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-top:4px;}
+  .masthead-stamp{font-family:var(--mono);font-size:12.5px;color:var(--muted);text-align:right;line-height:1.7;}
   .tabs{display:flex;gap:0;margin-bottom:24px;border-bottom:2px solid var(--paper-line);}
-  .tab{font-family:var(--sans);font-size:13px;font-weight:600;padding:10px 24px;cursor:pointer;border:none;background:none;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;}
+  .tab{font-family:var(--sans);font-size:14.5px;font-weight:600;padding:11px 26px;cursor:pointer;border:none;background:none;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;}
   .tab.active{color:var(--ink);border-bottom-color:var(--ink);}
   .tab:hover:not(.active){color:var(--ink);}
   .tab-panel{display:none;}
   .tab-panel.active{display:block;}
-  .filters{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;background:#fff;border:1px solid var(--paper-line);border-radius:4px;padding:14px 16px;margin-bottom:20px;}
-  .field{display:flex;flex-direction:column;gap:5px;}
-  .field label{font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);font-weight:600;}
-  .field input,.field select{font-family:var(--mono);font-size:13px;border:1px solid var(--paper-line);border-radius:3px;padding:7px 10px;background:var(--paper);color:var(--ink);}
+  .filters{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;background:#fff;border:1px solid var(--paper-line);border-radius:8px;padding:16px 18px;margin-bottom:20px;}
+  .field{display:flex;flex-direction:column;gap:6px;}
+  .field label{font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);font-weight:600;}
+  .field input,.field select{font-family:var(--mono);font-size:14px;border:1px solid var(--paper-line);border-radius:5px;padding:8px 11px;background:var(--paper);color:var(--ink);}
   .field input{min-width:136px;}
   .field select{min-width:160px;cursor:pointer;}
   .field select.wide{min-width:220px;}
   .field input:focus,.field select:focus{outline:2px solid var(--ink);outline-offset:1px;}
-  .btn{font-family:var(--sans);font-weight:600;font-size:13px;background:var(--ink);color:var(--paper);border:none;border-radius:3px;padding:9px 20px;cursor:pointer;}
+  .btn{font-family:var(--sans);font-weight:600;font-size:14px;background:var(--ink);color:var(--paper);border:none;border-radius:5px;padding:10px 22px;cursor:pointer;}
   .btn:hover{background:#0e1a20;}
-  .btn-xs{font-family:var(--sans);font-weight:600;font-size:11.5px;background:#fff;color:var(--ink);border:1px solid var(--paper-line);border-radius:3px;padding:5px 10px;cursor:pointer;margin-left:auto;}
+  .btn-xs{font-family:var(--sans);font-weight:600;font-size:12.5px;background:#fff;color:var(--ink);border:1px solid var(--paper-line);border-radius:5px;padding:6px 12px;cursor:pointer;margin-left:auto;}
   .btn-xs:hover{background:var(--paper);border-color:var(--ink);}
-  .estado{font-family:var(--mono);font-size:12px;color:var(--muted);margin:-8px 0 18px;min-height:16px;}
+  .estado{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin:-8px 0 18px;min-height:16px;}
   .estado.error{color:var(--cemei);}
-  .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--paper-line);border:1px solid var(--paper-line);margin-bottom:28px;}
-  .summary .card{background:#fff;padding:14px 16px;}
-  .summary .card .label{font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);font-weight:600;margin-bottom:6px;}
-  .summary .card .value{font-family:var(--mono);font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;}
+  .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--paper-line);border:1px solid var(--paper-line);margin-bottom:28px;border-radius:8px;overflow:hidden;}
+  .summary .card{background:#fff;padding:16px 18px;}
+  .summary .card .label{font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);font-weight:600;margin-bottom:7px;}
+  .summary .card .value{font-family:var(--mono);font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;}
   .summary .card.sig .value{color:var(--sig);}
   .summary .card.cemei .value{color:var(--cemei);}
   .summary .card.neo .value{color:var(--neo);}
   section.block{margin-bottom:32px;}
-  .block-title{font-family:var(--display);font-size:18px;font-weight:600;display:flex;align-items:baseline;gap:8px;margin-bottom:12px;}
-  .block-title .n{font-family:var(--mono);font-size:11px;color:var(--muted);}
-  .chart-card{background:#fff;border:1px solid var(--paper-line);border-radius:4px;padding:20px;height:340px;}
+  .block-title{font-family:var(--display);font-size:19px;font-weight:600;display:flex;align-items:baseline;gap:8px;margin-bottom:12px;}
+  .block-title .n{font-family:var(--mono);font-size:12.5px;color:var(--muted);}
+  .chart-card{background:#fff;border:1px solid var(--paper-line);border-radius:8px;padding:20px;height:340px;}
   /* Tabla resumen categorías */
   .cat-tabla{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--paper-line);}
-  .cat-tabla th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:600;padding:10px 12px;border-bottom:2px solid var(--ink);}
-  .cat-tabla td{padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:13px;}
+  .cat-tabla th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:600;padding:11px 12px;border-bottom:2px solid var(--ink);}
+  .cat-tabla td{padding:10px 12px;border-bottom:1px solid var(--paper-line);font-size:14px;}
   .cat-tabla .num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap;}
-  .cat-tabla tr.cat-row td{font-weight:700;background:var(--paper);font-size:12.5px;}
+  .cat-tabla tr.cat-row td{font-weight:700;background:var(--paper);font-size:14px;}
   .cat-tabla tr.sub-row td:first-child{padding-left:28px;color:var(--muted);}
   .cat-tabla tr.total-row td{font-weight:700;border-top:2px solid var(--ink);padding-top:12px;}
-  .cat-tabla .arr{display:inline-block;width:14px;font-size:11px;color:var(--muted);cursor:pointer;user-select:none;transition:transform 0.15s;}
+  .cat-tabla .arr{display:inline-block;width:14px;font-size:12.5px;color:var(--muted);cursor:pointer;user-select:none;transition:transform 0.15s;}
   .cat-tabla tr.cat-row{cursor:pointer;}
   .cat-tabla tr.cat-row:hover td,.cat-tabla tr.sub-row:hover td{background:var(--paper);}
-  .cat-tabla tr.det-row td{font-size:12px;color:var(--muted);padding-top:6px;padding-bottom:6px;}
+  .cat-tabla tr.det-row td{font-size:12.5px;color:var(--muted);padding-top:6px;padding-bottom:6px;}
   /* Tabla pagos */
   table.pagos-tabla{width:100%;border-collapse:collapse;background:#fff;}
-  table.pagos-tabla thead th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:600;padding:10px 12px;border-bottom:2px solid var(--ink);position:sticky;top:0;background:#fff;white-space:nowrap;}
-  table.pagos-tabla tbody td{padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:13px;vertical-align:top;}
+  table.pagos-tabla thead th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:600;padding:11px 12px;border-bottom:2px solid var(--ink);position:sticky;top:0;background:#fff;white-space:nowrap;}
+  table.pagos-tabla tbody td{padding:10px 12px;border-bottom:1px solid var(--paper-line);font-size:14px;vertical-align:top;}
   table.pagos-tabla tbody tr:hover{background:var(--paper);}
   td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;}
-  td.small{color:var(--muted);font-size:12px;max-width:240px;}
-  .badge{font-family:var(--mono);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;padding:2px 7px;border-radius:3px;display:inline-block;white-space:nowrap;}
+  td.small{color:var(--muted);font-size:12.5px;max-width:240px;}
+  .badge{font-family:var(--mono);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;padding:3px 8px;border-radius:4px;display:inline-block;white-space:nowrap;}
   .badge.sig{background:var(--sig-soft);color:var(--sig);}
   .badge.cemei{background:var(--cemei-soft);color:var(--cemei);}
   .badge.neo{background:var(--neo-soft);color:var(--neo);}
-  .pill{font-size:11px;color:var(--muted);background:var(--paper);border:1px solid var(--paper-line);padding:2px 8px;border-radius:12px;display:inline-block;white-space:nowrap;}
-  .table-scroll{max-height:500px;overflow:auto;border:1px solid var(--paper-line);}
+  .pill{font-size:12.5px;color:var(--muted);background:var(--paper);border:1px solid var(--paper-line);padding:3px 9px;border-radius:12px;display:inline-block;white-space:nowrap;}
+  .table-scroll{max-height:500px;overflow:auto;border:1px solid var(--paper-line);border-radius:8px;}
   .table-scroll table{border:none;}
   /* Ingresos */
   .badge.farm{background:#F5EFE0;color:#7A5E2E;}
   .badge.odonto{background:#EDE8F5;color:#5B3E8E;}
-  footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--paper-line);font-family:var(--mono);font-size:10.5px;color:var(--muted);text-align:center;}
+  footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--paper-line);font-family:var(--mono);font-size:11.5px;color:var(--muted);text-align:center;}
 </style>
 </head>
 <body>
@@ -106,6 +106,7 @@
   <!-- ═══════════════════ EGRESOS ═══════════════════ -->
   <div id="tab-egresos" class="tab-panel active">
     <div class="filters">
+      <div class="field"><label>Período</label><input type="month" id="eg-periodo"/></div>
       <div class="field"><label>Fecha desde</label><input type="date" id="eg-desde"/></div>
       <div class="field"><label>Fecha hasta</label><input type="date" id="eg-hasta"/></div>
       <div class="field">
@@ -171,6 +172,7 @@
   <!-- ═══════════════════ INGRESOS ═══════════════════ -->
   <div id="tab-ingresos" class="tab-panel">
     <div class="filters">
+      <div class="field"><label>Período</label><input type="month" id="ing-periodo"/></div>
       <div class="field"><label>Fecha desde</label><input type="date" id="ing-desde"/></div>
       <div class="field"><label>Fecha hasta</label><input type="date" id="ing-hasta"/></div>
       <div class="field">
@@ -271,6 +273,17 @@ let egBrutos=[], ingBrutos=[];
 
 const hoyISO=()=>new Date().toISOString().slice(0,10);
 const primerDiaMes=()=>{ const d=new Date(); return new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10); };
+const ultimoDiaMes=(am)=>{ const [a,m]=am.split('-').map(Number); return new Date(a,m,0).toISOString().slice(0,10); };
+// Al elegir un Período (mes/año), completa Fecha desde/hasta con ese mes entero. Los campos de
+// fecha se pueden seguir editando a mano después para un rango distinto al de un mes calendario.
+function aplicarPeriodo(prefijo){
+  const per=document.getElementById(`${prefijo}-periodo`).value; // "YYYY-MM"
+  if(!per) return;
+  document.getElementById(`${prefijo}-desde`).value=`${per}-01`;
+  document.getElementById(`${prefijo}-hasta`).value=ultimoDiaMes(per);
+}
+document.getElementById('eg-periodo').addEventListener('change',()=>aplicarPeriodo('eg'));
+document.getElementById('ing-periodo').addEventListener('change',()=>aplicarPeriodo('ing'));
 const formatARS=n=>new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:0}).format(n||0);
 const formatFecha=iso=>{ if(!iso) return '—'; const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; };
 const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -484,7 +497,7 @@ function renderEgresos(){
     <td>${formatFecha(p.fechaCobro)}</td>
     <td>${badgeEmpresa(p.origen)}</td>
     <td><span class="pill">${esc(p.categoria||'—')}</span></td>
-    <td style="font-size:12px;color:var(--muted)">${esc(p.subcategoria||'—')}</td>
+    <td style="font-size:12.5px;color:var(--muted)">${esc(p.subcategoria||'—')}</td>
     <td>${esc(p.proveedor)}</td>
     <td class="num">${formatARS(p.importe)}</td>
     <td class="small">${esc(p.concepto)}</td>
@@ -514,15 +527,15 @@ function exportarEgresosCSV(){
 function toggleResumen(rid){
   const rows=document.querySelectorAll(`tr.res-sub-row[data-res="${rid}"]`);
   const arr=document.getElementById(`arr-${rid}`);
-  const isOpen=arr.innerHTML.includes('&#9660;');
-  arr.innerHTML=isOpen?'&#9658; ':'&#9660; ';
+  const isOpen=arr.textContent.trim()==='▼';
+  arr.textContent=isOpen?'▶ ':'▼ ';
   rows.forEach(r=>r.style.display=isOpen?'none':'');
 }
 function toggleCategoria(rid){
   const rows=document.querySelectorAll(`tr.cc-sub-row[data-cc="${rid}"]`);
   const arr=document.getElementById(`arr-${rid}`);
-  const isOpen=arr.innerHTML.includes('&#9660;');
-  arr.innerHTML=isOpen?'&#9658; ':'&#9660; ';
+  const isOpen=arr.textContent.trim()==='▼';
+  arr.textContent=isOpen?'▶ ':'▼ ';
   rows.forEach(r=>r.style.display=isOpen?'none':'');
 }
 function toggleIngTipo(tid){
@@ -676,15 +689,15 @@ function renderIngresos(){
     const hasSub=Object.keys(d.subtipos).length>0;
     const rid=`rr${ri}`;
     resHtml+=`<tr ${hasSub?`onclick="toggleResumen('${rid}')" style="cursor:pointer;background:var(--paper)"`:''}>
-      <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:13px;${hasSub?'font-weight:600':''}">${hasSub?`<span class="arr" id="arr-${rid}">&#9658; </span>`:''}${esc(tipo)}</td>
-      <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:13px;text-align:right;font-family:var(--mono)">${d.cantidad}</td>
-      <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:13px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">${formatARS(d.total)}</td>
+      <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:14px;${hasSub?'font-weight:600':''}">${hasSub?`<span class="arr" id="arr-${rid}">&#9658; </span>`:''}${esc(tipo)}</td>
+      <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:14px;text-align:right;font-family:var(--mono)">${d.cantidad}</td>
+      <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:14px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">${formatARS(d.total)}</td>
     </tr>`;
     if(hasSub) Object.entries(d.subtipos).sort((a,b)=>b[1].total-a[1].total).forEach(([sub,sd])=>{
       resHtml+=`<tr class="res-sub-row" data-res="${rid}" style="display:none">
-        <td style="padding:7px 12px 7px 28px;border-bottom:1px solid var(--paper-line);font-size:12px;color:var(--muted)">${esc(sub)}</td>
-        <td style="padding:7px 12px;border-bottom:1px solid var(--paper-line);font-size:12px;text-align:right;font-family:var(--mono);color:var(--muted)">${sd.cantidad}</td>
-        <td style="padding:7px 12px;border-bottom:1px solid var(--paper-line);font-size:12px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--muted)">${formatARS(sd.total)}</td>
+        <td style="padding:7px 12px 7px 28px;border-bottom:1px solid var(--paper-line);font-size:12.5px;color:var(--muted)">${esc(sub)}</td>
+        <td style="padding:7px 12px;border-bottom:1px solid var(--paper-line);font-size:12.5px;text-align:right;font-family:var(--mono);color:var(--muted)">${sd.cantidad}</td>
+        <td style="padding:7px 12px;border-bottom:1px solid var(--paper-line);font-size:12.5px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--muted)">${formatARS(sd.total)}</td>
       </tr>`;
     });
     ri++;
@@ -693,16 +706,16 @@ function renderIngresos(){
   const tiposNoOp=Object.keys(porTipoRes).filter(t=>!TIPOS_OP.includes(t));
   resHtml+=`<tr><td colspan="3" style="${hdrStyle}">No Operativo</td></tr>`;
   if(tiposNoOp.length===0){
-    resHtml+=`<tr><td colspan="3" style="padding:8px 12px;font-size:12px;color:var(--muted);font-style:italic;border-bottom:1px solid var(--paper-line)">Sin registros</td></tr>`;
+    resHtml+=`<tr><td colspan="3" style="padding:8px 12px;font-size:12.5px;color:var(--muted);font-style:italic;border-bottom:1px solid var(--paper-line)">Sin registros</td></tr>`;
   } else {
     tiposNoOp.forEach(tipo=>{
       const d=porTipoRes[tipo];
       const hasSub=Object.keys(d.subtipos||{}).length>0;
       const rid=`rr${ri}`;
       resHtml+=`<tr ${hasSub?`onclick="toggleResumen('${rid}')" style="cursor:pointer;background:var(--paper)"`:''}>
-        <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:13px;${hasSub?'font-weight:600':''}">${hasSub?`<span class="arr" id="arr-${rid}">&#9658; </span>`:''}${esc(tipo)}</td>
-        <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:13px;text-align:right;font-family:var(--mono)">${d.cantidad}</td>
-        <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:13px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">${formatARS(d.total)}</td>
+        <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:14px;${hasSub?'font-weight:600':''}">${hasSub?`<span class="arr" id="arr-${rid}">&#9658; </span>`:''}${esc(tipo)}</td>
+        <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:14px;text-align:right;font-family:var(--mono)">${d.cantidad}</td>
+        <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:14px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">${formatARS(d.total)}</td>
       </tr>`;
       ri++;
     });
@@ -758,23 +771,23 @@ function renderIngresos(){
       const rid=`cc${ci}`;
       const pct=sd.total?(cd.total/sd.total*100).toFixed(1):'0.0';
       catHtml+=`<tr ${hasSub?`onclick="toggleCategoria('${rid}')" style="cursor:pointer"`:''}>
-        <td style="padding:8px 12px 8px 22px;border-bottom:1px solid var(--paper-line);font-size:13px;${hasSub?'font-weight:600':''}">${hasSub?`<span class="arr" id="arr-${rid}">&#9658; </span>`:''}${esc(cat)}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid var(--paper-line);font-size:13px;text-align:right;font-family:var(--mono)">${cd.cantidad}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid var(--paper-line);font-size:13px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">${formatARS(cd.total)}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid var(--paper-line);font-size:12px;text-align:right;font-family:var(--mono);color:var(--muted)">${pct}%</td>
+        <td style="padding:8px 12px 8px 22px;border-bottom:1px solid var(--paper-line);font-size:14px;${hasSub?'font-weight:600':''}">${hasSub?`<span class="arr" id="arr-${rid}">&#9658; </span>`:''}${esc(cat)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid var(--paper-line);font-size:14px;text-align:right;font-family:var(--mono)">${cd.cantidad}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid var(--paper-line);font-size:14px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">${formatARS(cd.total)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid var(--paper-line);font-size:12.5px;text-align:right;font-family:var(--mono);color:var(--muted)">${pct}%</td>
       </tr>`;
       if(hasSub) Object.entries(cd.subs).sort((a,b)=>b[1].total-a[1].total).forEach(([sub,subd])=>{
         catHtml+=`<tr class="cc-sub-row" data-cc="${rid}" style="display:none">
-          <td style="padding:6px 12px 6px 40px;border-bottom:1px solid var(--paper-line);font-size:12px;color:var(--muted)">${esc(sub)}</td>
-          <td style="padding:6px 12px;border-bottom:1px solid var(--paper-line);font-size:12px;text-align:right;font-family:var(--mono);color:var(--muted)">${subd.cantidad}</td>
-          <td style="padding:6px 12px;border-bottom:1px solid var(--paper-line);font-size:12px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--muted)">${formatARS(subd.total)}</td>
+          <td style="padding:6px 12px 6px 40px;border-bottom:1px solid var(--paper-line);font-size:12.5px;color:var(--muted)">${esc(sub)}</td>
+          <td style="padding:6px 12px;border-bottom:1px solid var(--paper-line);font-size:12.5px;text-align:right;font-family:var(--mono);color:var(--muted)">${subd.cantidad}</td>
+          <td style="padding:6px 12px;border-bottom:1px solid var(--paper-line);font-size:12.5px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--muted)">${formatARS(subd.total)}</td>
           <td style="border-bottom:1px solid var(--paper-line)"></td>
         </tr>`;
       });
       ci++;
     });
   });
-  if(sucOrden.length===0) catHtml=`<tr><td colspan="4" style="padding:8px 12px;font-size:12px;color:var(--muted);font-style:italic">Sin registros</td></tr>`;
+  if(sucOrden.length===0) catHtml=`<tr><td colspan="4" style="padding:8px 12px;font-size:12.5px;color:var(--muted);font-style:italic">Sin registros</td></tr>`;
   document.getElementById('ing-cat-tbody').innerHTML=catHtml;
 
   // Resumen por forma de pago
@@ -788,9 +801,9 @@ function renderIngresos(){
   document.getElementById('ing-fpN').textContent=`(${fpEnts.length})`;
   const totalFP=fpEnts.reduce((a,e)=>a+e[1].total,0);
   document.getElementById('ing-fp-tbody').innerHTML=fpEnts.map(([fp,d])=>`<tr>
-    <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:13px">${esc(fp)}</td>
-    <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:13px;text-align:right;font-family:var(--mono)">${d.cantidad}</td>
-    <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:13px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">${formatARS(d.total)}</td>
+    <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:14px">${esc(fp)}</td>
+    <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:14px;text-align:right;font-family:var(--mono)">${d.cantidad}</td>
+    <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:14px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">${formatARS(d.total)}</td>
   </tr>`).join('')+`<tr>
     <td style="padding:10px 12px;font-weight:700;border-top:2px solid var(--ink)">Total</td>
     <td style="padding:10px 12px;font-weight:700;text-align:right;font-family:var(--mono);border-top:2px solid var(--ink)">${cobros.length}</td>
@@ -816,15 +829,15 @@ function renderIngresos(){
     ingHtml+=`<tr class="ing-tipo-row" onclick="toggleIngTipo('${tid}')" style="cursor:pointer;background:var(--paper);">
       <td colspan="7" style="padding:11px 12px;font-weight:700;font-size:14px;">
         <span class="arr" id="arr-${tid}">▶</span> ${esc(tipo)}
-        <span style="font-weight:400;font-size:12px;color:var(--muted);margin-left:12px">${datos.count} cobros — ${formatARS(datos.total)}</span>
+        <span style="font-weight:400;font-size:12.5px;color:var(--muted);margin-left:12px">${datos.count} cobros — ${formatARS(datos.total)}</span>
       </td>
     </tr>`;
     datos.rows.forEach(c=>{
       ingHtml+=`<tr class="ing-det-row" data-tipo="${tid}" style="display:none">
         <td>${formatFecha(c.fechaCobro)}</td>
         <td>${badgeEmpresa(c.empresa)}</td>
-        <td>${(c.obraSocial||c.sucursal)?`<span style="font-size:12px;color:var(--muted)">${esc(c.obraSocial||c.sucursal)}</span>`:'—'}</td>
-        <td><span style="font-size:11px;color:var(--muted)">${esc(c.tipoConcepto||'—')}</span></td>
+        <td>${(c.obraSocial||c.sucursal)?`<span style="font-size:12.5px;color:var(--muted)">${esc(c.obraSocial||c.sucursal)}</span>`:'—'}</td>
+        <td><span style="font-size:11.5px;color:var(--muted)">${esc(c.tipoConcepto||'—')}</span></td>
         <td>${esc(c.cliente)}</td>
         <td>${esc(c.formaPago)}</td>
         <td class="num">${formatARS(c.monto)}</td>
@@ -837,21 +850,21 @@ function renderIngresos(){
   ingHtml+=`<tr><td colspan="7" style="padding:8px 12px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);background:var(--paper);border-bottom:1px solid var(--paper-line)">No Operativo</td></tr>`;
   const tiposNoOpD=Object.keys(porTipoTabla).filter(t=>!TIPOS_OP_ING.includes(t));
   if(tiposNoOpD.length===0){
-    ingHtml+=`<tr><td colspan="7" style="padding:8px 12px;font-size:12px;color:var(--muted);font-style:italic">Sin registros</td></tr>`;
+    ingHtml+=`<tr><td colspan="7" style="padding:8px 12px;font-size:12.5px;color:var(--muted);font-style:italic">Sin registros</td></tr>`;
   } else {
     tiposNoOpD.forEach(tipo=>{
       const datos=porTipoTabla[tipo];
       const tid=`it${ti}`;
       ingHtml+=`<tr class="ing-tipo-row" onclick="toggleIngTipo('${tid}')" style="cursor:pointer;background:#faf8f4;">
-        <td colspan="7" style="padding:11px 12px;font-size:13px;font-weight:600;border-bottom:1px solid var(--paper-line)">
+        <td colspan="7" style="padding:11px 12px;font-size:14px;font-weight:600;border-bottom:1px solid var(--paper-line)">
           <span class="arr" id="arr-${tid}">&#9658;</span> ${esc(tipo)}
-          <span style="font-weight:400;font-size:12px;color:var(--muted);margin-left:12px">${datos.count} cobros — ${formatARS(datos.total)}</span>
+          <span style="font-weight:400;font-size:12.5px;color:var(--muted);margin-left:12px">${datos.count} cobros — ${formatARS(datos.total)}</span>
         </td>
       </tr>`;
       (datos.rows||[]).forEach(c=>{
         ingHtml+=`<tr class="ing-det-row" data-tipo="${tid}" style="display:none">
           <td>${formatFecha(c.fechaCobro)}</td><td>${badgeEmpresa(c.empresa)}</td>
-          <td>—</td><td><span style="font-size:11px;color:var(--muted)">—</span></td>
+          <td>—</td><td><span style="font-size:11.5px;color:var(--muted)">—</span></td>
           <td>${esc(c.cliente)}</td><td>${esc(c.formaPago)}</td>
           <td class="num">${formatARS(c.monto)}</td><td class="small">${esc(c.concepto)}</td>
         </tr>`;
@@ -892,6 +905,7 @@ document.getElementById('ing-tipoconcepto').addEventListener('change',()=>{ if(i
 // ══════════════════════════════════════════════════════
 ['eg-desde','ing-desde'].forEach(id=>document.getElementById(id).value=primerDiaMes());
 ['eg-hasta','ing-hasta'].forEach(id=>document.getElementById(id).value=hoyISO());
+['eg-periodo','ing-periodo'].forEach(id=>document.getElementById(id).value=hoyISO().slice(0,7));
 </script>
 </body>
 </html>
