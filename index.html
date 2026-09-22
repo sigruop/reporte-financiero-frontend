@@ -718,6 +718,12 @@ function renderIngresos(){
     if((c.origenFactura||'').toLowerCase().includes('prefactura')) return {cat:'ACLISA',sub:null};
     if(c.tipoConcepto==='Medicamentos') return {cat:'Hospital de Día',sub:null};
     if(c.tipoConcepto==='Adicionales / Plus') return {cat:'Plus',sub:null};
+    // Antes cualquier cosa sin match caía en "Particular" — eso mezclaba origen "Manual" (u otro
+    // valor explícito que no sea Particulares) con los realmente particulares y desfasaba el total
+    // contra el filtro de Origen. Ahora solo entra acá cuando el origen es Particulares o no viene
+    // especificado; lo demás queda separado y visible.
+    const og=(c.origenFactura||'').toLowerCase();
+    if(og && !['particulares','particular'].includes(og)) return {cat:`Origen: ${c.origenFactura}`,sub:null};
     return {cat:'Particular',sub:null};
   }
   const porSucCat={};
