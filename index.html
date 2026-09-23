@@ -14,21 +14,25 @@
     --cemei:#B5563C;--cemei-soft:#F6E8E2;
     --neo:#2E5E8E;--neo-soft:#E2ECF6;
     --muted:#75705F;
+    --hero-bg:#1B1F27;--hero-bg2:#242A35;
+    --accent:#E7A33E;--accent-soft:#F2C579;
     --display:'Source Serif 4',Georgia,serif;
     --mono:'IBM Plex Mono',ui-monospace,monospace;
     --sans:'Inter',system-ui,sans-serif;
   }
   *{box-sizing:border-box;}
   body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14.5px;line-height:1.5;-webkit-font-smoothing:antialiased;}
-  .wrap{max-width:1180px;margin:0 auto;padding:32px 24px 80px;}
-  header.masthead{border-bottom:2px solid var(--ink);padding-bottom:16px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;}
-  .masthead-title{font-family:var(--display);font-weight:600;font-size:32px;letter-spacing:-0.01em;}
-  .masthead-sub{font-family:var(--mono);font-size:12.5px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-top:4px;}
-  .masthead-stamp{font-family:var(--mono);font-size:12.5px;color:var(--muted);text-align:right;line-height:1.7;}
-  .tabs{display:flex;gap:0;margin-bottom:24px;border-bottom:2px solid var(--paper-line);}
-  .tab{font-family:var(--sans);font-size:14.5px;font-weight:600;padding:11px 26px;cursor:pointer;border:none;background:none;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;}
-  .tab.active{color:var(--ink);border-bottom-color:var(--ink);}
-  .tab:hover:not(.active){color:var(--ink);}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 24px 80px;}
+  .hero{background:linear-gradient(155deg,var(--hero-bg),var(--hero-bg2));}
+  .hero-inner{max-width:1180px;margin:0 auto;padding:28px 24px 0;}
+  .hero-top{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:24px;}
+  .hero-title{font-family:var(--sans);font-weight:700;font-size:31px;letter-spacing:-0.015em;color:#fff;}
+  .hero-sub{font-family:var(--mono);font-size:12.5px;color:var(--accent-soft);text-transform:uppercase;letter-spacing:0.08em;margin-top:6px;}
+  .hero-stamp{font-family:var(--mono);font-size:12.5px;color:#A7B0BE;text-align:right;line-height:1.7;}
+  .tabs{display:flex;gap:8px;}
+  .tab{font-family:var(--sans);font-size:14.5px;font-weight:600;padding:11px 24px 13px;cursor:pointer;border:none;background:rgba(255,255,255,0.07);color:#C7CFDA;border-radius:10px 10px 0 0;transition:background 0.15s,color 0.15s;}
+  .tab.active{background:var(--paper);color:var(--ink);}
+  .tab:hover:not(.active){background:rgba(255,255,255,0.14);color:#fff;}
   .tab-panel{display:none;}
   .tab-panel.active{display:block;}
   .filters{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;background:#fff;border:1px solid var(--paper-line);border-radius:8px;padding:16px 18px;margin-bottom:20px;}
@@ -46,14 +50,14 @@
   .estado{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin:-8px 0 18px;min-height:16px;}
   .estado.error{color:var(--cemei);}
   .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--paper-line);border:1px solid var(--paper-line);margin-bottom:28px;border-radius:8px;overflow:hidden;}
-  .summary .card{background:#fff;padding:16px 18px;}
-  .summary .card .label{font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);font-weight:600;margin-bottom:7px;}
-  .summary .card .value{font-family:var(--mono);font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;}
+  .summary .card{background:#fff;padding:18px 20px;}
+  .summary .card .label{font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);font-weight:600;margin-bottom:8px;}
+  .summary .card .value{font-family:var(--mono);font-size:23px;font-weight:600;font-variant-numeric:tabular-nums;}
   .summary .card.sig .value{color:var(--sig);}
   .summary .card.cemei .value{color:var(--cemei);}
   .summary .card.neo .value{color:var(--neo);}
   section.block{margin-bottom:32px;}
-  .block-title{font-family:var(--display);font-size:19px;font-weight:600;display:flex;align-items:baseline;gap:8px;margin-bottom:12px;}
+  .block-title{font-family:var(--sans);font-size:18px;font-weight:700;letter-spacing:-0.01em;display:flex;align-items:baseline;gap:8px;margin-bottom:12px;}
   .block-title .n{font-family:var(--mono);font-size:12.5px;color:var(--muted);}
   .chart-card{background:#fff;border:1px solid var(--paper-line);border-radius:8px;padding:20px;height:340px;}
   /* Tabla resumen categorías */
@@ -89,19 +93,22 @@
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header class="masthead">
-    <div>
-      <div class="masthead-title">Reporte Financiero</div>
-      <div class="masthead-sub">Salud Integral · SIG Clínica (CEMEI) · Neoform</div>
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-top">
+      <div>
+        <div class="hero-title">Reporte Financiero</div>
+        <div class="hero-sub">Salud Integral · SIG Clínica (CEMEI) · Neoform</div>
+      </div>
+      <div class="hero-stamp" id="stampFecha">Actualizado: —</div>
     </div>
-    <div class="masthead-stamp" id="stampFecha">Actualizado: —</div>
-  </header>
-
-  <div class="tabs">
-    <button class="tab active" onclick="cambiarTab('egresos',this)">Egresos</button>
-    <button class="tab" onclick="cambiarTab('ingresos',this)">Ingresos</button>
+    <div class="tabs">
+      <button class="tab active" onclick="cambiarTab('egresos',this)">Egresos</button>
+      <button class="tab" onclick="cambiarTab('ingresos',this)">Ingresos</button>
+    </div>
   </div>
+</div>
+<div class="wrap">
 
   <!-- ═══════════════════ EGRESOS ═══════════════════ -->
   <div id="tab-egresos" class="tab-panel active">
@@ -136,7 +143,7 @@
         <label>Subcategoría</label>
         <select id="eg-sub" class="wide"><option value="">Todas</option></select>
       </div>
-      <div class="field" style="min-width:210px;">
+      <div class="field" style="min-width:210px;display:none">
         <label>URL del backend</label>
         <input type="text" id="eg-backend" value="https://reporte-financiero-backend.onrender.com"/>
       </div>
@@ -188,7 +195,7 @@
         <label>Sucursal</label>
         <select id="ing-sucursal"><option value="">Todas</option></select>
       </div>
-      <div class="field">
+      <div class="field" style="display:none">
         <label>Origen</label>
         <select id="ing-origen"><option value="">Todos</option></select>
       </div>
@@ -207,7 +214,7 @@
           <option value="Seña / Descartable">Seña / Descartable</option>
         </select>
       </div>
-      <div class="field" style="min-width:210px;">
+      <div class="field" style="min-width:210px;display:none">
         <label>URL del backend</label>
         <input type="text" id="ing-backend" value="https://reporte-financiero-backend.onrender.com"/>
       </div>
@@ -702,6 +709,9 @@ function renderIngresos(){
     });
     ri++;
   });
+  const subtotalStyle='padding:9px 12px;font-weight:700;font-size:13px;border-top:1px solid var(--ink);border-bottom:1px solid var(--paper-line);background:var(--paper)';
+  const cantOp=entResOp.reduce((a,t)=>a+porTipoRes[t].cantidad,0);
+  resHtml+=`<tr><td style="${subtotalStyle}">Total Operativo</td><td style="${subtotalStyle}text-align:right;font-family:var(--mono)">${cantOp}</td><td style="${subtotalStyle}text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">${formatARS(totalRes)}</td></tr>`;
   // NO OPERATIVO: cualquier tipo que no esté en TIPOS_OP
   const tiposNoOp=Object.keys(porTipoRes).filter(t=>!TIPOS_OP.includes(t));
   resHtml+=`<tr><td colspan="3" style="${hdrStyle}">No Operativo</td></tr>`;
@@ -720,7 +730,10 @@ function renderIngresos(){
       ri++;
     });
   }
-  resHtml+=`<tr><td style="padding:10px 12px;font-weight:700;border-top:2px solid var(--ink)">Total</td><td style="padding:10px 12px;font-weight:700;text-align:right;font-family:var(--mono);border-top:2px solid var(--ink)">${cobros.length}</td><td style="padding:10px 12px;font-weight:700;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;border-top:2px solid var(--ink)">${formatARS(totalRes)}</td></tr>`;
+  const totalNoOp=tiposNoOp.reduce((a,t)=>a+porTipoRes[t].total,0);
+  const cantNoOp=tiposNoOp.reduce((a,t)=>a+porTipoRes[t].cantidad,0);
+  resHtml+=`<tr><td style="${subtotalStyle}">Total No Operativo</td><td style="${subtotalStyle}text-align:right;font-family:var(--mono)">${cantNoOp}</td><td style="${subtotalStyle}text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">${formatARS(totalNoOp)}</td></tr>`;
+  resHtml+=`<tr><td style="padding:10px 12px;font-weight:700;border-top:2px solid var(--ink)">Total</td><td style="padding:10px 12px;font-weight:700;text-align:right;font-family:var(--mono);border-top:2px solid var(--ink)">${cobros.length}</td><td style="padding:10px 12px;font-weight:700;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;border-top:2px solid var(--ink)">${formatARS(totalRes+totalNoOp)}</td></tr>`;
   document.getElementById('ing-tipo-tbody').innerHTML=resHtml;
 
   // Resumen por categoría — Sucursal > Categoría (estilo Excel de Presupuesto Financiero) >
@@ -743,7 +756,10 @@ function renderIngresos(){
     return {cat:'Particular',sub:null};
   }
   const porSucCat={};
-  cobros.forEach(c=>{
+  // Esta jerarquía (sucursal > Convenios Directos > ...) es un concepto exclusivo de CEMEI — Salud
+  // Integral y Neoform no tienen sucursales ni Convenios Directos, así que mezclarlos acá solo
+  // generaba una fila "Sin sucursal" sin sentido.
+  cobros.filter(c=>empresaKey(c.empresa)==='CEMEI').forEach(c=>{
     const suc=c.sucursal||'Sin sucursal';
     const {cat,sub}=categoriaExcel(c);
     if(!porSucCat[suc]) porSucCat[suc]={total:0,cantidad:0,cats:{}};
