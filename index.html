@@ -56,6 +56,7 @@
   .summary .card.sig .value{color:var(--sig);}
   .summary .card.cemei .value{color:var(--cemei);}
   .summary .card.neo .value{color:var(--neo);}
+  .summary .card.farmacia .value{color:#7A5E2E;}
   section.block{margin-bottom:32px;}
   .block-title{font-family:var(--sans);font-size:18px;font-weight:700;letter-spacing:-0.01em;display:flex;align-items:baseline;gap:8px;margin-bottom:12px;}
   .block-title .n{font-family:var(--mono);font-size:12.5px;color:var(--muted);}
@@ -83,6 +84,7 @@
   .badge.sig{background:var(--sig-soft);color:var(--sig);}
   .badge.cemei{background:var(--cemei-soft);color:var(--cemei);}
   .badge.neo{background:var(--neo-soft);color:var(--neo);}
+  .badge.farmacia{background:#F5EFE0;color:#7A5E2E;}
   .pill{font-size:12.5px;color:var(--muted);background:var(--paper);border:1px solid var(--paper-line);padding:3px 9px;border-radius:12px;display:inline-block;white-space:nowrap;}
   .table-scroll{max-height:500px;overflow:auto;border:1px solid var(--paper-line);border-radius:8px;}
   .table-scroll table{border:none;}
@@ -189,6 +191,7 @@
           <option value="SIG">Salud Integral (SIG)</option>
           <option value="CEMEI">SIG Clínica (CEMEI)</option>
           <option value="NEO">Neoform</option>
+          <option value="FARMACIA">Farmacia</option>
         </select>
       </div>
       <div class="field">
@@ -224,8 +227,22 @@
       </div>
       <button class="btn" onclick="consultarIngresos()">Consultar</button>
     </div>
+
+    <section class="block" style="margin-bottom:20px;">
+      <div class="block-title" style="font-size:15px;">Cargar ventas de Farmacia</div>
+      <div style="background:#fff;border:1px solid var(--paper-line);border-radius:8px;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <input type="file" id="farmacia-archivo" accept=".csv"/>
+        <button class="btn" onclick="procesarFarmaciaCSV()">Procesar archivo</button>
+        <span id="farmacia-upload-estado" style="font-family:var(--mono);font-size:12.5px;color:var(--muted);"></span>
+      </div>
+      <div style="font-size:11.5px;color:var(--muted);padding:6px 2px 0;">
+        Export del punto de venta (CSV, separado por ';'). Reemplaza el/los meses que aparezcan en el archivo — no afecta otros meses.
+      </div>
+    </section>
+
     <div class="estado" id="ing-estado"></div>
     <div class="summary" id="ing-summary"></div>
+    <div id="farmacia-panel"></div>
 
     <section class="block">
       <div class="block-title">Resumen por tipo <span class="n" id="ing-tipoN"></span></div>
@@ -277,6 +294,7 @@
 // ══════════════════════════════════════════════════════
 let egChart=null;
 let egBrutos=[], ingBrutos=[];
+let ingFarmaciaDeuda={cobertura:0,ctaCtePendiente:0,meses:[]};
 
 const hoyISO=()=>new Date().toISOString().slice(0,10);
 const primerDiaMes=()=>{ const d=new Date(); return new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10); };
@@ -326,11 +344,13 @@ function empresaKey(origen){
   if(!origen) return 'SIG';
   if(origen.includes('CEMEI')) return 'CEMEI';
   if(origen.includes('Neoform')) return 'NEO';
+  if(origen.includes('Farmacia')) return 'FARMACIA';
   return 'SIG';
 }
 function badgeEmpresa(origen){
   const k=empresaKey(origen);
-  return `<span class="badge ${k.toLowerCase()}">${k==='CEMEI'?'CEMEI':k==='NEO'?'NEO':'SIG'}</span>`;
+  const etiqueta=k==='CEMEI'?'CEMEI':k==='NEO'?'NEO':k==='FARMACIA'?'Farmacia':'SIG';
+  return `<span class="badge ${k.toLowerCase()}">${etiqueta}</span>`;
 }
 
 function cambiarTab(id,btn){
@@ -610,6 +630,61 @@ function filtrarEgresosBase(){
 // ══════════════════════════════════════════════════════
 // INGRESOS
 // ══════════════════════════════════════════════════════
+async function procesarFarmaciaCSV(){
+  const input=document.getElementById('farmacia-archivo');
+  const estado=document.getElementById('farmacia-upload-estado');
+  const backend=document.getElementById('ing-backend').value.trim().replace(/\/$/,'');
+  if(!input.files || !input.files[0]){ estado.style.color='var(--cemei)'; estado.textContent='Elegí un archivo primero.'; return; }
+  estado.style.color='var(--muted)'; estado.textContent='Procesando…';
+  const fd=new FormData();
+  fd.append('archivo', input.files[0]);
+  try{
+    const resp=await fetch(`${backend}/api/farmacia/cargar`,{method:'POST', body:fd});
+    const data=await resp.json();
+    if(!resp.ok) throw new Error(data.error||`HTTP ${resp.status}`);
+    estado.style.color='var(--sig)';
+    estado.textContent=`Listo — se actualizó: ${data.mesesActualizados.join(', ')}`;
+    input.value='';
+    if(ingBrutos.length) consultarIngresos(); // refresca el reporte con los datos nuevos
+  }catch(err){
+    estado.style.color='var(--cemei)';
+    estado.textContent=`Error: ${err.message}`;
+  }
+}
+
+function renderFarmaciaPanel(cobros){
+  const panel=document.getElementById('farmacia-panel');
+  const farm=cobros.filter(c=>empresaKey(c.empresa)==='FARMACIA');
+  if(farm.length===0){ panel.innerHTML=''; return; }
+  const ORDEN_FP=['Efectivo','Debito','Credito','MercadoPago','PuntosPago','Transferencia','QR'];
+  const ETIQUETAS_FP={Efectivo:'Efectivo',Debito:'Débito',Credito:'Crédito',MercadoPago:'Mercado Pago',PuntosPago:'Puntos de pago',Transferencia:'Transferencias',QR:'QR'};
+  const porFP={};
+  farm.forEach(c=>{ porFP[c.formaPago]=(porFP[c.formaPago]||0)+(c.monto||0); });
+  const total=farm.reduce((a,c)=>a+(c.monto||0),0);
+  const celdas=ORDEN_FP.map(fp=>`
+    <div>
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:600;margin-bottom:6px;">${ETIQUETAS_FP[fp]}</div>
+      <div style="font-family:var(--mono);font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;">${formatARS(porFP[fp]||0)}</div>
+    </div>`).join('');
+  const nota=ingFarmaciaDeuda.meses && ingFarmaciaDeuda.meses.length
+    ? `Incluye ventas del mes cobradas al momento y cobranzas de Cta. Cte. vieja (RC). No incluye Cobertura (${formatARS(ingFarmaciaDeuda.cobertura)}) ni Cta. Cte. pendiente de este mes (${formatARS(ingFarmaciaDeuda.ctaCtePendiente)}): esas quedan como Deuda hasta que se cobren.`
+    : '';
+  panel.innerHTML=`
+    <section class="block">
+      <div class="block-title">Farmacia — Cobrado del período, por forma de pago</div>
+      <div style="background:#fff;border:1px solid var(--paper-line);border-radius:8px;padding:18px 20px;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:18px;">
+          ${celdas}
+          <div>
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:600;margin-bottom:6px;">Cobrado total (caja)</div>
+            <div style="font-family:var(--mono);font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;color:#7A5E2E;">${formatARS(total)}</div>
+          </div>
+        </div>
+        ${nota?`<div style="font-size:11.5px;color:var(--muted);margin-top:14px;padding-top:12px;border-top:1px solid var(--paper-line);">${nota}</div>`:''}
+      </div>
+    </section>`;
+}
+
 async function consultarIngresos(){
   const desde=document.getElementById('ing-desde').value;
   const hasta=document.getElementById('ing-hasta').value;
@@ -622,6 +697,7 @@ async function consultarIngresos(){
     if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data=await resp.json();
     ingBrutos=data.cobros;
+    ingFarmaciaDeuda=data.farmaciaDeuda||{cobertura:0,ctaCtePendiente:0,meses:[]};
     estado.textContent=`${data.total} cobros — Total: ${formatARS(data.totalCobrado)}`;
     document.getElementById('stampFecha').textContent=`Actualizado: ${new Date().toLocaleString('es-AR')}`;
     poblarFiltroSucursal(data.cobros);
@@ -672,12 +748,16 @@ function renderIngresos(){
   const sig=cobros.filter(c=>empresaKey(c.empresa)==='SIG').reduce((a,c)=>a+(c.monto||0),0);
   const cemei=cobros.filter(c=>empresaKey(c.empresa)==='CEMEI').reduce((a,c)=>a+(c.monto||0),0);
   const neo=cobros.filter(c=>empresaKey(c.empresa)==='NEO').reduce((a,c)=>a+(c.monto||0),0);
+  const farmacia=cobros.filter(c=>empresaKey(c.empresa)==='FARMACIA').reduce((a,c)=>a+(c.monto||0),0);
   document.getElementById('ing-summary').innerHTML=`
     <div class="card"><div class="label">Total cobrado</div><div class="value">${formatARS(total)}</div></div>
     <div class="card sig"><div class="label">Salud Integral</div><div class="value">${formatARS(sig)}</div></div>
     <div class="card cemei"><div class="label">CEMEI</div><div class="value">${formatARS(cemei)}</div></div>
     <div class="card neo"><div class="label">Neoform</div><div class="value">${formatARS(neo)}</div></div>
+    <div class="card farmacia"><div class="label">Farmacia</div><div class="value">${formatARS(farmacia)}</div></div>
     <div class="card"><div class="label">Cobros</div><div class="value">${cobros.length}</div></div>`;
+
+  renderFarmaciaPanel(cobros);
 
   // Resumen por tipo: OPERATIVO / NO OPERATIVO con Fiscalización expandible
   const TIPOS_OP=['Pagos de cuotas','Venta de ordenes','Capitación','Fiscalización'];
@@ -813,9 +893,9 @@ function renderIngresos(){
   if(sucOrden.length===0) catHtml=`<tr><td colspan="4" style="padding:8px 12px;font-size:12.5px;color:var(--muted);font-style:italic">Sin registros</td></tr>`;
   document.getElementById('ing-cat-tbody').innerHTML=catHtml;
 
-  // Resumen por forma de pago
+  // Resumen por forma de pago (Farmacia tiene su propio panel más abajo, no se mezcla acá)
   const porFP={};
-  cobros.forEach(c=>{
+  cobros.filter(c=>empresaKey(c.empresa)!=='FARMACIA').forEach(c=>{
     const fp=c.formaPago||'Sin especificar';
     if(!porFP[fp]) porFP[fp]={cantidad:0,total:0};
     porFP[fp].cantidad++; porFP[fp].total+=(c.monto||0);
