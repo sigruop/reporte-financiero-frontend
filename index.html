@@ -630,19 +630,68 @@ function filtrarEgresosBase(){
 // ══════════════════════════════════════════════════════
 // INGRESOS
 // ══════════════════════════════════════════════════════
+function parsearNumeroARFarmacia(s){
+  if(s===undefined || s===null) return 0;
+  const t=String(s).trim();
+  if(!t) return 0;
+  return parseFloat(t.replace(/\./g,'').replace(',','.')) || 0;
+}
+
+// Parsea el CSV de la caja (San Lorenzo/SAMED) acá mismo, en el navegador: separado por ';',
+// codificado en latin1 (ISO-8859-1), números en formato argentino. Ya filtra a FV/NC/RC (IN=vuelto
+// y EG=retiro de caja no son venta, se descartan acá) y calcula el período (YYYY-MM) de cada fila
+// a partir de "Emision" — así el backend recibe el JSON { filas:[...] } listo para guardar, sin
+// tener que subir el archivo en sí (evita depender de multer en el servidor).
+function parsearCSVFarmaciaCliente(texto){
+  const lineas=texto.split(/\r?\n/).filter(l=>l.trim().length>0);
+  if(lineas.length<2) throw new Error('El archivo no tiene filas de datos');
+  const encabezado=lineas[0].split(';').map(h=>h.trim());
+  const idx={};
+  encabezado.forEach((h,i)=>{ idx[h]=i; });
+  const requeridas=['Emision','Comprobante','Total','Cobertura','Cta. Cte.','Efectivo','Debito','Credito','MercadoPago','PuntosPago','MovBancario','Otros'];
+  const faltantes=requeridas.filter(r=>!(r in idx));
+  if(faltantes.length) throw new Error(`Al archivo le faltan columnas: ${faltantes.join(', ')}`);
+  const filas=[];
+  for(let i=1;i<lineas.length;i++){
+    const campos=lineas[i].split(';');
+    const comprobante=(campos[idx['Comprobante']]||'').trim();
+    if(!comprobante) continue;
+    const prefijo=comprobante.split(' ')[0];
+    if(!['FV','NC','RC'].includes(prefijo)) continue; // IN/EG: no son venta ni cobranza
+    const emision=(campos[idx['Emision']]||'').trim(); // dd/mm/yyyy
+    const m=emision.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if(!m) continue; // fila sin fecha utilizable
+    filas.push({
+      periodo:`${m[3]}-${m[2]}`, comprobante, prefijo, fecha:emision,
+      cliente:(campos[idx['Cliente']]||'').trim(), total:parsearNumeroARFarmacia(campos[idx['Total']]),
+      cobertura:parsearNumeroARFarmacia(campos[idx['Cobertura']]), ctaCte:parsearNumeroARFarmacia(campos[idx['Cta. Cte.']]),
+      efectivo:parsearNumeroARFarmacia(campos[idx['Efectivo']]), debito:parsearNumeroARFarmacia(campos[idx['Debito']]),
+      credito:parsearNumeroARFarmacia(campos[idx['Credito']]), mercadoPago:parsearNumeroARFarmacia(campos[idx['MercadoPago']]),
+      puntosPago:parsearNumeroARFarmacia(campos[idx['PuntosPago']]), movBancario:parsearNumeroARFarmacia(campos[idx['MovBancario']]),
+      otros:parsearNumeroARFarmacia(campos[idx['Otros']]),
+    });
+  }
+  return filas;
+}
+
 async function procesarFarmaciaCSV(){
   const input=document.getElementById('farmacia-archivo');
   const estado=document.getElementById('farmacia-upload-estado');
   const backend=document.getElementById('ing-backend').value.trim().replace(/\/$/,'');
   if(!input.files || !input.files[0]){ estado.style.color='var(--cemei)'; estado.textContent='Elegí un archivo primero.'; return; }
-  estado.style.color='var(--muted)'; estado.textContent='Procesando…';
-  const fd=new FormData();
-  fd.append('archivo', input.files[0]);
+  estado.style.color='var(--muted)'; estado.textContent='Leyendo archivo…';
   try{
-    const resp=await fetch(`${backend}/api/farmacia/cargar`,{method:'POST', body:fd});
-    const texto=await resp.text();
+    const buffer=await input.files[0].arrayBuffer();
+    const texto=new TextDecoder('iso-8859-1').decode(buffer); // el export viene en latin1, no UTF-8
+    const filas=parsearCSVFarmaciaCliente(texto);
+    if(filas.length===0) throw new Error('No se encontraron filas FV/NC/RC con fecha válida en el archivo');
+    estado.textContent=`Enviando ${filas.length} filas…`;
+    const resp=await fetch(`${backend}/api/ingest/ventas-farmacia`,{
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({filas}),
+    });
+    const texto2=await resp.text();
     let data;
-    try{ data=JSON.parse(texto); }
+    try{ data=JSON.parse(texto2); }
     catch(e){
       // El backend respondió algo que no es JSON (típico: todavía no tiene este endpoint
       // desplegado, y Render devuelve su página HTML de "Cannot POST ...").
@@ -650,7 +699,7 @@ async function procesarFarmaciaCSV(){
     }
     if(!resp.ok) throw new Error(data.error||`HTTP ${resp.status}`);
     estado.style.color='var(--sig)';
-    estado.textContent=`Listo — se actualizó: ${data.mesesActualizados.join(', ')}`;
+    estado.textContent=`Listo — se actualizó: ${data.periodosActualizados.join(', ')}`;
     input.value='';
     if(ingBrutos.length) consultarIngresos(); // refresca el reporte con los datos nuevos
   }catch(err){
