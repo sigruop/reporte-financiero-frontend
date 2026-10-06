@@ -640,7 +640,14 @@ async function procesarFarmaciaCSV(){
   fd.append('archivo', input.files[0]);
   try{
     const resp=await fetch(`${backend}/api/farmacia/cargar`,{method:'POST', body:fd});
-    const data=await resp.json();
+    const texto=await resp.text();
+    let data;
+    try{ data=JSON.parse(texto); }
+    catch(e){
+      // El backend respondió algo que no es JSON (típico: todavía no tiene este endpoint
+      // desplegado, y Render devuelve su página HTML de "Cannot POST ...").
+      throw new Error(`El servidor no devolvió una respuesta válida (HTTP ${resp.status}). ¿Está desplegada la versión nueva del backend?`);
+    }
     if(!resp.ok) throw new Error(data.error||`HTTP ${resp.status}`);
     estado.style.color='var(--sig)';
     estado.textContent=`Listo — se actualizó: ${data.mesesActualizados.join(', ')}`;
