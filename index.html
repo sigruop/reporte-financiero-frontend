@@ -300,7 +300,15 @@ function descargarCSV(filas, columnas, nombreBase){
 // colisión acá. CEMEI Consultorios y CEMEI Odontología SÍ tienen que seguir sumando juntas bajo
 // "CEMEI": no se tocan, siguen cayendo acá por origen nomás, igual que siempre.
 function empresaKey(origen, subUnidad){
-  if(subUnidad && String(subUnidad).toUpperCase().includes('LABORAL')) return 'LABORAL';
+  const su = subUnidad ? String(subUnidad).toUpperCase() : '';
+  if(su.includes('LABORAL')) return 'LABORAL';
+  // Además de la Farmacia cargada por CSV (empresa="Farmacia", generarCobrosFarmacia en server.js),
+  // CEMEI tiene su PROPIA sucursal/unidad real llamada "Farmacia" en sus datos de facturación y
+  // pagos (en egresos llega como unidad="Farmacia" cuando rawCaja==="CONVENIO EXTERNO" — ver
+  // obtenerDetallePagos en server.js) — sin este chequeo quedaba contada adentro de "CEMEI" y
+  // aparecía como un grupo "FARMACIA" más del desglose por sucursal, en vez de ir al mismo total de
+  // Farmacia de arriba.
+  if(su.includes('FARMACIA')) return 'FARMACIA';
   if(!origen) return 'SIG';
   if(origen.includes('CEMEI')) return 'CEMEI';
   if(origen.includes('Neoform')) return 'NEO';
