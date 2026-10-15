@@ -363,6 +363,39 @@ function cambiarTab(id,btn){
 // ══════════════════════════════════════════════════════
 // EGRESOS
 // ══════════════════════════════════════════════════════
+// Render (plan free) apaga el backend tras ~15 min sin tráfico. El primer pedido del día lo
+// "despierta", pero eso puede tardar bastante (a veces más de un minuto) y mientras tanto el
+// servidor devuelve 502/503/504 o ni responde. Antes el fetch único se cortaba ahí y la pantalla
+// quedaba pegada en "Consultando…" sin ninguna pista de qué pasaba. Ahora reintentamos solos
+// mientras avisamos el motivo, y recién tiramos error de verdad si se pasa el límite de tiempo.
+async function fetchConDespertar(url, estadoEl, limiteMs = 90000) {
+  const inicio = Date.now();
+  while (true) {
+    let resp, motivo;
+    try {
+      resp = await fetch(url);
+    } catch (e) {
+      motivo = e.message || 'sin conexión';
+    }
+    if (resp) {
+      if (resp.ok) {
+        try { return await resp.json(); }
+        catch (e) { motivo = 'respuesta no es JSON todavía (el servidor sigue despertando)'; }
+      } else if ([502, 503, 504].includes(resp.status)) {
+        motivo = `HTTP ${resp.status}`;
+      } else {
+        throw new Error(`HTTP ${resp.status}`); // error real, no tiene sentido reintentar
+      }
+    }
+    const transcurridoMs = Date.now() - inicio;
+    if (transcurridoMs > limiteMs) {
+      throw new Error(`el servidor no respondió a tiempo (${motivo}). Probá de nuevo en un minuto.`);
+    }
+    if (estadoEl) estadoEl.textContent = `El servidor estaba dormido, despertando… (${Math.round(transcurridoMs/1000)}s)`;
+    await new Promise(res => setTimeout(res, 3000));
+  }
+}
+
 async function consultarEgresos(){
   const desde=document.getElementById('eg-desde').value;
   const hasta=document.getElementById('eg-hasta').value;
@@ -371,9 +404,7 @@ async function consultarEgresos(){
   if(!desde){ estado.textContent='La fecha "desde" es obligatoria.'; estado.className='estado error'; return; }
   estado.className='estado'; estado.textContent='Consultando…';
   try{
-    const resp=await fetch(`${backend}/api/pagos?desde=${desde}&hasta=${hasta||desde}`);
-    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const data=await resp.json();
+    const data=await fetchConDespertar(`${backend}/api/pagos?desde=${desde}&hasta=${hasta||desde}`, estado);
     // Excluir transferencias internas entre cuentas propias
     // Se filtra por rubro Y por concepto para no depender de la clasificación del backend
     egBrutos=data.pagos.filter(p=>{
@@ -657,7 +688,9 @@ function parsearCSVFarmaciaCliente(texto){
     const comprobante=(campos[idx['Comprobante']]||'').trim();
     if(!comprobante) continue;
     const prefijo=comprobante.split(' ')[0];
-    if(!['FV','NC','RC'].includes(prefijo)) continue; // IN/EG: no son venta ni cobranza
+    // IN (vuelto) y EG (retiro de caja) no son venta ni cobranza ni cobro real — se descartan
+    // por completo, no se envían al backend.
+    if(!['FV','NC','RC'].includes(prefijo)) continue;
     const emision=(campos[idx['Emision']]||'').trim(); // dd/mm/yyyy
     const m=emision.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
     if(!m) continue; // fila sin fecha utilizable
@@ -749,9 +782,7 @@ async function consultarIngresos(){
   if(!desde){ estado.textContent='La fecha "desde" es obligatoria.'; estado.className='estado error'; return; }
   estado.className='estado'; estado.textContent='Consultando…';
   try{
-    const resp=await fetch(`${backend}/api/cobros?desde=${desde}&hasta=${hasta||desde}`);
-    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const data=await resp.json();
+    const data=await fetchConDespertar(`${backend}/api/cobros?desde=${desde}&hasta=${hasta||desde}`, estado);
     ingBrutos=data.cobros;
     ingFarmaciaDeuda=data.farmaciaDeuda||{cobertura:0,ctaCtePendiente:0,meses:[]};
     estado.textContent=`${data.total} cobros — Total: ${formatARS(data.totalCobrado)}`;
