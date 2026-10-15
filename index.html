@@ -13,6 +13,7 @@
     --sig:#0F6657;--sig-soft:#E4F0EC;
     --cemei:#B5563C;--cemei-soft:#F6E8E2;
     --neo:#2E5E8E;--neo-soft:#E2ECF6;
+    --laboral:#5E7A4A;--laboral-soft:#E8EDE0;
     --muted:#75705F;
     --hero-bg:#1B1F27;--hero-bg2:#242A35;
     --accent:#E7A33E;--accent-soft:#F2C579;
@@ -56,6 +57,7 @@
   .summary .card.sig .value{color:var(--sig);}
   .summary .card.cemei .value{color:var(--cemei);}
   .summary .card.neo .value{color:var(--neo);}
+  .summary .card.laboral .value{color:var(--laboral);}
   .summary .card.farmacia .value{color:#7A5E2E;}
   section.block{margin-bottom:32px;}
   .section-title{font-family:var(--sans);font-size:24px;font-weight:800;letter-spacing:-0.01em;margin:40px 0 16px;padding-top:28px;border-top:2px solid var(--ink);}
@@ -86,6 +88,7 @@
   .badge.sig{background:var(--sig-soft);color:var(--sig);}
   .badge.cemei{background:var(--cemei-soft);color:var(--cemei);}
   .badge.neo{background:var(--neo-soft);color:var(--neo);}
+  .badge.laboral{background:var(--laboral-soft);color:var(--laboral);}
   .badge.farmacia{background:#F5EFE0;color:#7A5E2E;}
   .pill{font-size:12.5px;color:var(--muted);background:var(--paper);border:1px solid var(--paper-line);padding:3px 9px;border-radius:12px;display:inline-block;white-space:nowrap;}
   .table-scroll{max-height:500px;overflow:auto;border:1px solid var(--paper-line);border-radius:8px;}
@@ -122,6 +125,7 @@
           <option value="">Todas las empresas</option>
           <option value="SIG">Salud Integral (SIG)</option>
           <option value="CEMEI">SIG Clínica (CEMEI)</option>
+          <option value="LABORAL">Medicina Laboral</option>
           <option value="NEO">Neoform</option>
           <option value="FARMACIA">Farmacia</option>
         </select>
@@ -283,16 +287,29 @@ function descargarCSV(filas, columnas, nombreBase){
   URL.revokeObjectURL(url);
 }
 
-function empresaKey(origen){
+// subUnidad es c.sucursal (ingresos) o p.unidad (egresos) cuando está disponible. Medicina Laboral
+// es una sucursal/unidad real de CEMEI (factura directo a sus propios clientes) — antes quedaba
+// mezclada adentro del total de "CEMEI" sin forma de verla aparte. En vivo aparece con dos textos
+// distintos según la fuente: "Medicina Laboral" (sucursal en ingresos, o unidad en egresos cuando
+// se detecta por el rubro "MEDICINA LABORAL" dentro de una caja CEMEI SRL) y "CEMEI LABORAL" (en
+// egresos, cuando viene de su propia caja/empresa_caja separada) — por eso se matchea por la
+// palabra "LABORAL" sola, no el texto completo, así se cubren las dos variantes.
+// Importante: esto es DISTINTO del "Convenio Directo" homónimo (cuando CEMEI Consultorios factura
+// a un tercero llamado "Medicina Laboral" como cliente) — ese caso nunca trae sucursal="Medicina
+// Laboral" (el backend ya los separa, ver detectarConvenioDirecto en server.js), así que no hay
+// colisión acá. CEMEI Consultorios y CEMEI Odontología SÍ tienen que seguir sumando juntas bajo
+// "CEMEI": no se tocan, siguen cayendo acá por origen nomás, igual que siempre.
+function empresaKey(origen, subUnidad){
+  if(subUnidad && String(subUnidad).toUpperCase().includes('LABORAL')) return 'LABORAL';
   if(!origen) return 'SIG';
   if(origen.includes('CEMEI')) return 'CEMEI';
   if(origen.includes('Neoform')) return 'NEO';
   if(origen.includes('Farmacia')) return 'FARMACIA';
   return 'SIG';
 }
-function badgeEmpresa(origen){
-  const k=empresaKey(origen);
-  const etiqueta=k==='CEMEI'?'CEMEI':k==='NEO'?'NEO':k==='FARMACIA'?'Farmacia':'SIG';
+function badgeEmpresa(origen, subUnidad){
+  const k=empresaKey(origen, subUnidad);
+  const etiqueta=k==='CEMEI'?'CEMEI':k==='LABORAL'?'Laboral':k==='NEO'?'NEO':k==='FARMACIA'?'Farmacia':'SIG';
   return `<span class="badge ${k.toLowerCase()}">${etiqueta}</span>`;
 }
 
@@ -308,8 +325,8 @@ function renderResultadoNeto(){
   const el=document.getElementById('resultado-neto');
   if(!ingBrutos.length && !egBrutos.length){ el.style.display='none'; return; }
   const emp=document.getElementById('flt-empresa').value;
-  const totalIngresos=(emp?ingBrutos.filter(c=>empresaKey(c.empresa)===emp):ingBrutos).reduce((a,c)=>a+(c.monto||0),0);
-  const totalEgresos=egBrutos.filter(p=>p.categoria!=='__INTERNO__' && (!emp||empresaKey(p.origen)===emp)).reduce((a,p)=>a+(p.importe||0),0);
+  const totalIngresos=(emp?ingBrutos.filter(c=>empresaKey(c.empresa,c.sucursal)===emp):ingBrutos).reduce((a,c)=>a+(c.monto||0),0);
+  const totalEgresos=egBrutos.filter(p=>p.categoria!=='__INTERNO__' && (!emp||empresaKey(p.origen,p.unidad)===emp)).reduce((a,p)=>a+(p.importe||0),0);
   const neto=totalIngresos-totalEgresos;
   el.style.display='';
   el.innerHTML=`
@@ -387,7 +404,7 @@ function filtrarEgresos(){
   const emp=document.getElementById('flt-empresa').value;
   return egBrutos.filter(p=>{
     if(p.categoria==='__INTERNO__') return false; // excluir movimientos entre cuentas siempre
-    if(emp && empresaKey(p.origen)!==emp) return false;
+    if(emp && empresaKey(p.origen,p.unidad)!==emp) return false;
     return true;
   });
 }
@@ -472,7 +489,7 @@ function renderEgresos(){
   const ord=[...pagos_vis].sort((a,b)=>(b.fechaCobro||'').localeCompare(a.fechaCobro||''));
   document.getElementById('eg-tbody').innerHTML=ord.map(p=>`<tr>
     <td>${formatFecha(p.fechaCobro)}</td>
-    <td>${badgeEmpresa(p.origen)}</td>
+    <td>${badgeEmpresa(p.origen,p.unidad)}</td>
     <td><span class="pill">${esc(p.categoria||'—')}</span></td>
     <td style="font-size:12.5px;color:var(--muted)">${esc(p.subcategoria||'—')}</td>
     <td>${esc(p.proveedor)}</td>
@@ -646,7 +663,7 @@ async function procesarFarmaciaCSV(){
 
 function renderFarmaciaPanel(cobros){
   const panel=document.getElementById('farmacia-panel');
-  const farm=cobros.filter(c=>empresaKey(c.empresa)==='FARMACIA');
+  const farm=cobros.filter(c=>empresaKey(c.empresa,c.sucursal)==='FARMACIA');
   if(farm.length===0){ panel.innerHTML=''; return; }
   const ORDEN_FP=['Efectivo','Debito','Credito','MercadoPago','PuntosPago','Transferencia','QR'];
   const ETIQUETAS_FP={Efectivo:'Efectivo',Debito:'Débito',Credito:'Crédito',MercadoPago:'Mercado Pago',PuntosPago:'Puntos de pago',Transferencia:'Transferencias',QR:'QR'};
@@ -701,7 +718,7 @@ async function consultarIngresos(){
 function filtrarIngresos(){
   const emp=document.getElementById('flt-empresa').value;
   return ingBrutos.filter(c=>{
-    if(emp && empresaKey(c.empresa)!==emp) return false;
+    if(emp && empresaKey(c.empresa,c.sucursal)!==emp) return false;
     return true;
   });
 }
@@ -807,8 +824,8 @@ function renderIngresos(){
   // por obra social, también de Neoform (agrupado bajo la etiqueta "Neoform" en vez de una
   // sucursal real, que no tiene). Salud Integral (SIG) sigue afuera: no tiene sucursales ni pasa
   // por ACLISA, así que acá solo generaría una fila "Sin sucursal" sin nada debajo.
-  cobros.filter(c=>['CEMEI','NEO'].includes(empresaKey(c.empresa))).forEach(c=>{
-    const suc=empresaKey(c.empresa)==='NEO' ? 'Neoform' : (c.sucursal||'Sin sucursal');
+  cobros.filter(c=>['CEMEI','NEO'].includes(empresaKey(c.empresa,c.sucursal))).forEach(c=>{
+    const suc=empresaKey(c.empresa,c.sucursal)==='NEO' ? 'Neoform' : (c.sucursal||'Sin sucursal');
     const {cat,sub}=categoriaExcel(c);
     if(!porSucCat[suc]) porSucCat[suc]={total:0,cantidad:0,cats:{}};
     porSucCat[suc].total+=(c.monto||0); porSucCat[suc].cantidad++;
@@ -856,7 +873,7 @@ function renderIngresos(){
 
   // Resumen por forma de pago (Farmacia tiene su propio panel más abajo, no se mezcla acá)
   const porFP={};
-  cobros.filter(c=>empresaKey(c.empresa)!=='FARMACIA').forEach(c=>{
+  cobros.filter(c=>empresaKey(c.empresa,c.sucursal)!=='FARMACIA').forEach(c=>{
     const fp=c.formaPago||'Sin especificar';
     if(!porFP[fp]) porFP[fp]={cantidad:0,total:0};
     porFP[fp].cantidad++; porFP[fp].total+=(c.monto||0);
@@ -899,7 +916,7 @@ function renderIngresos(){
     datos.rows.forEach(c=>{
       ingHtml+=`<tr class="ing-det-row" data-tipo="${tid}" style="display:none">
         <td>${formatFecha(c.fechaCobro)}</td>
-        <td>${badgeEmpresa(c.empresa)}</td>
+        <td>${badgeEmpresa(c.empresa,c.sucursal)}</td>
         <td>${(c.obraSocial||c.sucursal)?`<span style="font-size:12.5px;color:var(--muted)">${esc(c.obraSocial||c.sucursal)}</span>`:'—'}</td>
         <td><span style="font-size:11.5px;color:var(--muted)">${esc(c.tipoConcepto||'—')}</span></td>
         <td>${esc(c.cliente)}</td>
@@ -927,7 +944,7 @@ function renderIngresos(){
       </tr>`;
       (datos.rows||[]).forEach(c=>{
         ingHtml+=`<tr class="ing-det-row" data-tipo="${tid}" style="display:none">
-          <td>${formatFecha(c.fechaCobro)}</td><td>${badgeEmpresa(c.empresa)}</td>
+          <td>${formatFecha(c.fechaCobro)}</td><td>${badgeEmpresa(c.empresa,c.sucursal)}</td>
           <td>${(c.obraSocial||c.sucursal)?`<span style="font-size:12.5px;color:var(--muted)">${esc(c.obraSocial||c.sucursal)}</span>`:'—'}</td>
           <td><span style="font-size:11.5px;color:var(--muted)">${esc(c.tipoConcepto||'—')}</span></td>
           <td>${esc(c.cliente)}</td><td>${esc(c.formaPago)}</td>
