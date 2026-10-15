@@ -228,7 +228,7 @@
       <button class="btn" onclick="consultarIngresos()">Consultar</button>
     </div>
 
-    <section class="block" style="margin-bottom:20px;">
+    <section class="block" id="farmacia-upload-section" style="margin-bottom:20px;">
       <div class="block-title" style="font-size:15px;">Cargar ventas de Farmacia</div>
       <div style="background:#fff;border:1px solid var(--paper-line);border-radius:8px;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
         <input type="file" id="farmacia-archivo" accept=".csv"/>
@@ -917,7 +917,9 @@ function renderIngresos(){
   const ORDEN_CAT=['Convenios Directos','ACLISA','Particular','Plus','Hospital de Día','Seña/Descartable'];
   function categoriaExcel(c){
     if(['Salud Integral','UTA','Medicina Laboral','OSPES'].includes(c.tipoConcepto)) return {cat:'Convenios Directos',sub:c.tipoConcepto};
-    if((c.origenFactura||'').toLowerCase().includes('prefactura')) return {cat:'ACLISA',sub:null};
+    // Dentro de "ACLISA" se desglosa por la obra social real (AMP, IASEP, OSMATA, SPF, Swiss
+    // Medical, etc. — ver la rendición que manda ACLISA), extraída del concepto en el backend.
+    if((c.origenFactura||'').toLowerCase().includes('prefactura')) return {cat:'ACLISA',sub:c.obraSocial||null};
     if(c.tipoConcepto==='Medicamentos') return {cat:'Hospital de Día',sub:null};
     if(c.tipoConcepto==='Adicionales / Plus') return {cat:'Plus',sub:null};
     if(c.tipoConcepto==='Seña / Descartable') return {cat:'Seña/Descartable',sub:null};
@@ -930,11 +932,12 @@ function renderIngresos(){
     return {cat:'Particular',sub:null};
   }
   const porSucCat={};
-  // Esta jerarquía (sucursal > Convenios Directos > ...) es un concepto exclusivo de CEMEI — Salud
-  // Integral y Neoform no tienen sucursales ni Convenios Directos, así que mezclarlos acá solo
-  // generaba una fila "Sin sucursal" sin sentido.
-  cobros.filter(c=>empresaKey(c.empresa)==='CEMEI').forEach(c=>{
-    const suc=c.sucursal||'Sin sucursal';
+  // Esta jerarquía (sucursal > Categoría > sub-ítem) es de CEMEI y, desde que ACLISA se desglosa
+  // por obra social, también de Neoform (agrupado bajo la etiqueta "Neoform" en vez de una
+  // sucursal real, que no tiene). Salud Integral (SIG) sigue afuera: no tiene sucursales ni pasa
+  // por ACLISA, así que acá solo generaría una fila "Sin sucursal" sin nada debajo.
+  cobros.filter(c=>['CEMEI','NEO'].includes(empresaKey(c.empresa))).forEach(c=>{
+    const suc=empresaKey(c.empresa)==='NEO' ? 'Neoform' : (c.sucursal||'Sin sucursal');
     const {cat,sub}=categoriaExcel(c);
     if(!porSucCat[suc]) porSucCat[suc]={total:0,cantidad:0,cats:{}};
     porSucCat[suc].total+=(c.monto||0); porSucCat[suc].cantidad++;
@@ -1054,7 +1057,8 @@ function renderIngresos(){
       (datos.rows||[]).forEach(c=>{
         ingHtml+=`<tr class="ing-det-row" data-tipo="${tid}" style="display:none">
           <td>${formatFecha(c.fechaCobro)}</td><td>${badgeEmpresa(c.empresa)}</td>
-          <td>—</td><td><span style="font-size:11.5px;color:var(--muted)">—</span></td>
+          <td>${(c.obraSocial||c.sucursal)?`<span style="font-size:12.5px;color:var(--muted)">${esc(c.obraSocial||c.sucursal)}</span>`:'—'}</td>
+          <td><span style="font-size:11.5px;color:var(--muted)">${esc(c.tipoConcepto||'—')}</span></td>
           <td>${esc(c.cliente)}</td><td>${esc(c.formaPago)}</td>
           <td class="num">${formatARS(c.monto)}</td><td class="small">${conceptoCorto(c.concepto)}</td>
         </tr>`;
@@ -1085,7 +1089,18 @@ function exportarIngresosCSV(){
   ],'ingresos_detalle');
 }
 
-document.getElementById('ing-empresa').addEventListener('change',()=>{ if(ingBrutos.length) renderIngresos(); });
+// La carga de ventas de Farmacia solo tiene sentido cuando se está mirando Farmacia (o "todas las
+// empresas") — con SIG/CEMEI/Neo elegidos puntualmente no corresponde mostrarla.
+function actualizarVisibilidadCargaFarmacia(){
+  const emp=document.getElementById('ing-empresa').value;
+  const visible = emp==='' || emp==='FARMACIA';
+  document.getElementById('farmacia-upload-section').style.display = visible ? '' : 'none';
+}
+document.getElementById('ing-empresa').addEventListener('change',()=>{
+  actualizarVisibilidadCargaFarmacia();
+  if(ingBrutos.length) renderIngresos();
+});
+actualizarVisibilidadCargaFarmacia();
 document.getElementById('ing-sucursal').addEventListener('change',()=>{ if(ingBrutos.length) renderIngresos(); });
 document.getElementById('ing-origen').addEventListener('change',()=>{ if(ingBrutos.length) renderIngresos(); });
 document.getElementById('ing-tipoconcepto').addEventListener('change',()=>{ if(ingBrutos.length) renderIngresos(); });
