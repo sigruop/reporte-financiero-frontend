@@ -111,7 +111,7 @@
 <div class="wrap">
 
   <div id="tab-financiero" class="tab-panel active">
-    <!-- ═══════ FILTROS GENERALES (comunes a Ingresos y Egresos) ═══════ -->
+    <!-- ═══════ FILTROS (único: Período + Empresa, compartido por todo) ═══════ -->
     <div class="filters">
       <div class="field"><label>Período</label><input type="month" id="flt-periodo"/></div>
       <div class="field"><label>Fecha desde</label><input type="date" id="flt-desde"/></div>
@@ -137,35 +137,6 @@
 
     <!-- ═══════════════════ INGRESOS ═══════════════════ -->
     <div class="section-title">Ingresos</div>
-    <div class="filters">
-      <div class="field">
-        <label>Sucursal</label>
-        <select id="ing-sucursal"><option value="">Todas</option></select>
-      </div>
-      <div class="field" style="display:none">
-        <label>Origen</label>
-        <select id="ing-origen"><option value="">Todos</option></select>
-      </div>
-      <div class="field">
-        <label>Tipo concepto</label>
-        <select id="ing-tipoconcepto">
-          <option value="">Todos</option>
-          <option value="Particular">Particular</option>
-          <option value="Medicamentos">Medicamentos</option>
-          <option value="Adicionales / Plus">Adicionales / Plus</option>
-          <option value="Prefacturas">Prefacturas</option>
-          <option value="Salud Integral">Salud Integral</option>
-          <option value="UTA">UTA</option>
-          <option value="Medicina Laboral">Medicina Laboral</option>
-          <option value="OSPES">OSPES</option>
-          <option value="Seña / Descartable">Seña / Descartable</option>
-        </select>
-      </div>
-      <div class="field" style="min-width:220px;">
-        <label>Buscar</label>
-        <input type="text" id="ing-buscar" placeholder="Cliente, concepto, empresa..." oninput="if(ingBrutos.length) renderIngresos()"/>
-      </div>
-    </div>
 
     <section class="block" id="farmacia-upload-section" style="margin-bottom:20px;">
       <div class="block-title" style="font-size:15px;">Cargar ventas de Farmacia</div>
@@ -182,6 +153,37 @@
     <div class="estado" id="ing-estado"></div>
     <div class="summary" id="ing-summary"></div>
     <div id="farmacia-panel"></div>
+
+    <!-- ═══════════════════ EGRESOS ═══════════════════ -->
+    <div class="section-title">Egresos</div>
+    <div class="estado" id="eg-estado"></div>
+    <div class="summary" id="eg-summary"></div>
+
+    <section class="block">
+      <div class="block-title">Por categoría y subcategoría <span class="n" id="eg-catN"></span></div>
+      <table class="cat-tabla">
+        <thead><tr><th>Categoría / Subcategoría</th><th class="num">Pagos</th><th class="num">Total</th></tr></thead>
+        <tbody id="eg-cat-tbody"></tbody>
+      </table>
+    </section>
+
+    <section class="block">
+      <div class="block-title">Importe por categoría <span class="n" id="eg-rubroN"></span></div>
+      <div class="chart-card"><canvas id="eg-chart"></canvas></div>
+    </section>
+
+    <section class="block">
+      <div class="block-title">Pagos <span class="n" id="eg-tablaN"></span><button class="btn-xs" onclick="exportarEgresosCSV()">⬇ Excel</button></div>
+      <div class="table-scroll">
+        <table class="pagos-tabla">
+          <thead><tr><th>Fecha</th><th>Empresa</th><th>Categoría</th><th>Subcategoría</th><th>Proveedor</th><th class="num">Importe</th><th>Concepto</th></tr></thead>
+          <tbody id="eg-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ═══════════════════ DETALLE DE INGRESOS (al final, abajo de todo) ═══════════════════ -->
+    <div class="section-title">Detalle de Ingresos</div>
 
     <section class="block">
       <div class="block-title">Resumen por tipo <span class="n" id="ing-tipoN"></span></div>
@@ -219,54 +221,6 @@
         <table class="pagos-tabla">
           <thead><tr><th>Fecha Cobro</th><th>Empresa</th><th>Obra Social</th><th>Tipo</th><th>Cliente</th><th>Forma de Pago</th><th class="num">Monto</th><th>Concepto</th></tr></thead>
           <tbody id="ing-tbody"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- ═══════════════════ EGRESOS ═══════════════════ -->
-    <div class="section-title">Egresos</div>
-    <div class="filters">
-      <div class="field">
-        <label>Unidad CEMEI</label>
-        <select id="eg-unidad">
-          <option value="">Todas</option>
-          <option value="CEMEI SRL">CEMEI SRL</option>
-          <option value="CEMEI Odontología">CEMEI Odontología</option>
-          <option value="Farmacia">Farmacia</option>
-          <option value="Medicina Laboral">Medicina Laboral</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Categoría</label>
-        <select id="eg-cat" class="wide"><option value="">Todas</option></select>
-      </div>
-      <div class="field">
-        <label>Subcategoría</label>
-        <select id="eg-sub" class="wide"><option value="">Todas</option></select>
-      </div>
-    </div>
-    <div class="estado" id="eg-estado"></div>
-    <div class="summary" id="eg-summary"></div>
-
-    <section class="block">
-      <div class="block-title">Por categoría y subcategoría <span class="n" id="eg-catN"></span></div>
-      <table class="cat-tabla">
-        <thead><tr><th>Categoría / Subcategoría</th><th class="num">Pagos</th><th class="num">Total</th></tr></thead>
-        <tbody id="eg-cat-tbody"></tbody>
-      </table>
-    </section>
-
-    <section class="block">
-      <div class="block-title">Importe por subcategoría <span class="n" id="eg-rubroN"></span></div>
-      <div class="chart-card"><canvas id="eg-chart"></canvas></div>
-    </section>
-
-    <section class="block">
-      <div class="block-title">Pagos <span class="n" id="eg-tablaN"></span><button class="btn-xs" onclick="exportarEgresosCSV()">⬇ Excel</button></div>
-      <div class="table-scroll">
-        <table class="pagos-tabla">
-          <thead><tr><th>Fecha</th><th>Empresa</th><th>Categoría</th><th>Subcategoría</th><th>Proveedor</th><th class="num">Importe</th><th>Concepto</th></tr></thead>
-          <tbody id="eg-tbody"></tbody>
         </table>
       </div>
     </section>
@@ -418,8 +372,6 @@ async function consultarEgresos(){
     });
     estado.textContent=`${data.total} pagos encontrados.`;
     document.getElementById('stampFecha').textContent=`Actualizado: ${new Date().toLocaleString('es-AR')}`;
-    poblarFiltrosCat(egBrutos);
-    poblarSucursalEg(egBrutos);
     renderEgresos();
     renderResultadoNeto();
   }catch(err){
@@ -428,45 +380,11 @@ async function consultarEgresos(){
   }
 }
 
-function poblarSucursalEg(pagos){
-  const suc=new Set(pagos.filter(p=>p.unidad).map(p=>p.unidad));
-  const sel=document.getElementById('eg-unidad');
-  const val=sel.value;
-  sel.innerHTML='<option value="">Todas</option>';
-  [...suc].sort().forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;if(s===val)o.selected=true;sel.appendChild(o);});
-}
-
-function poblarFiltrosCat(pagos){
-  // Categorías únicas
-  const cats=[...new Set(pagos.map(p=>p.categoria).filter(Boolean))].sort();
-  const selCat=document.getElementById('eg-cat');
-  const valCat=selCat.value;
-  selCat.innerHTML='<option value="">Todas</option>';
-  cats.forEach(c=>{ const o=document.createElement('option'); o.value=c; o.textContent=c; if(c===valCat)o.selected=true; selCat.appendChild(o); });
-  actualizarSubcats(pagos);
-}
-
-function actualizarSubcats(pagos){
-  const cat=document.getElementById('eg-cat').value;
-  const filtrados=cat ? pagos.filter(p=>p.categoria===cat) : pagos;
-  const subs=[...new Set(filtrados.map(p=>p.subcategoria).filter(Boolean))].sort();
-  const selSub=document.getElementById('eg-sub');
-  const valSub=selSub.value;
-  selSub.innerHTML='<option value="">Todas</option>';
-  subs.forEach(s=>{ const o=document.createElement('option'); o.value=s; o.textContent=s; if(s===valSub)o.selected=true; selSub.appendChild(o); });
-}
-
 function filtrarEgresos(){
   const emp=document.getElementById('flt-empresa').value;
-  const uni=document.getElementById('eg-unidad').value;
-  const cat=document.getElementById('eg-cat').value;
-  const sub=document.getElementById('eg-sub').value;
   return egBrutos.filter(p=>{
     if(p.categoria==='__INTERNO__') return false; // excluir movimientos entre cuentas siempre
     if(emp && empresaKey(p.origen)!==emp) return false;
-    if(uni && p.unidad!==uni) return false;
-    if(cat && p.categoria!==cat) return false;
-    if(sub && p.subcategoria!==sub) return false;
     return true;
   });
 }
@@ -536,17 +454,10 @@ function renderEgresos(){
   html+=`<tr class="total-row"><td><strong>TOTAL</strong></td><td class="num">${pagos.length}</td><td class="num">${formatARS(totalGeneral)}</td></tr>`;
   document.getElementById('eg-cat-tbody').innerHTML=html;
 
-  // Gráfico: si hay categoría seleccionada → por subcategoría; si no → por categoría
-  const catSel=document.getElementById('eg-cat').value;
+  // Gráfico: siempre por categoría (el detalle por subcategoría ya está en la tabla expandible de arriba)
   const COLS=['#0F6657','#B5563C','#2E5E8E','#7A5E2E','#5B3E8E','#1A6B6B','#8E6B2E','#2E8E6B'];
   let labels,valores;
-  if(catSel){
-    const subMap={};
-    pagos.forEach(p=>{ const s=p.subcategoria||'Sin sub'; subMap[s]=(subMap[s]||0)+(p.importe||0); });
-    const ents=Object.entries(subMap).sort((a,b)=>b[1]-a[1]);
-    labels=ents.map(e=>e[0]); valores=ents.map(e=>e[1]);
-    document.getElementById('eg-rubroN').textContent=`(${ents.length} subcategorías de "${catSel}")`;
-  } else {
+  {
     const catMap={};
     pagos.forEach(p=>{ const c=p.categoria||'Sin cat'; catMap[c]=(catMap[c]||0)+(p.importe||0); });
     const ents=Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
@@ -642,23 +553,8 @@ function toggleSub(e,subId){
   rows.forEach(row=>row.style.display=open?'none':'');
 }
 
-// Listeners cascada (el de flt-empresa, compartido con Ingresos, se registra más abajo junto con
-// el resto de los efectos que dispara el cambio de empresa)
-document.getElementById('eg-unidad').addEventListener('change',()=>{ if(egBrutos.length){ actualizarSubcats(filtrarEgresosBase()); renderEgresos(); }});
-document.getElementById('eg-cat').addEventListener('change',()=>{ if(egBrutos.length){ actualizarSubcats(filtrarEgresosBase()); renderEgresos(); }});
-document.getElementById('eg-sub').addEventListener('change',()=>{ if(egBrutos.length) renderEgresos(); });
-
-function filtrarEgresosBase(){
-  const emp=document.getElementById('flt-empresa').value;
-  const uni=document.getElementById('eg-unidad').value;
-  const cat=document.getElementById('eg-cat').value;
-  return egBrutos.filter(p=>{
-    if(emp && empresaKey(p.origen)!==emp) return false;
-    if(uni && p.unidad!==uni) return false;
-    if(cat && p.categoria!==cat) return false;
-    return true;
-  });
-}
+// El cambio de flt-empresa (compartido con Ingresos) se registra más abajo junto con el resto de
+// los efectos que dispara.
 
 // ══════════════════════════════════════════════════════
 // INGRESOS
@@ -789,7 +685,6 @@ async function consultarIngresos(){
     ingFarmaciaDeuda=data.farmaciaDeuda||{cobertura:0,ctaCtePendiente:0,meses:[]};
     estado.textContent=`${data.total} cobros — Total: ${formatARS(data.totalCobrado)}`;
     document.getElementById('stampFecha').textContent=`Actualizado: ${new Date().toLocaleString('es-AR')}`;
-    poblarFiltroSucursal(data.cobros);
     renderIngresos();
     renderResultadoNeto();
   }catch(err){
@@ -798,36 +693,10 @@ async function consultarIngresos(){
   }
 }
 
-function poblarFiltroSucursal(cobros){
-  // Sucursales físicas
-  const suc=new Set(cobros.filter(c=>c.sucursal).map(c=>c.sucursal));
-  const sel=document.getElementById('ing-sucursal');
-  const val=sel.value;
-  sel.innerHTML='<option value="">Todas</option>';
-  [...suc].sort().forEach(s=>{ const o=document.createElement('option'); o.value=s; o.textContent=s; if(s===val)o.selected=true; sel.appendChild(o); });
-  // Orígenes de facturación
-  const ori=new Set(cobros.filter(c=>c.origenFactura).map(c=>c.origenFactura));
-  const selO=document.getElementById('ing-origen');
-  const valO=selO.value;
-  selO.innerHTML='<option value="">Todos</option>';
-  [...ori].sort().forEach(s=>{ const o=document.createElement('option'); o.value=s; o.textContent=s; if(s===valO)o.selected=true; selO.appendChild(o); });
-}
-
 function filtrarIngresos(){
   const emp=document.getElementById('flt-empresa').value;
-  const suc=document.getElementById('ing-sucursal').value;
-  const ori=document.getElementById('ing-origen').value;
-  const tc=document.getElementById('ing-tipoconcepto').value;
-  const q=(document.getElementById('ing-buscar').value||'').toUpperCase().trim();
   return ingBrutos.filter(c=>{
     if(emp && empresaKey(c.empresa)!==emp) return false;
-    if(suc && c.sucursal!==suc) return false;
-    if(ori && c.origenFactura!==ori) return false;
-    if(tc && c.tipoConcepto!==tc) return false;
-    if(q){
-      const haystack=[c.cliente,c.empresa,c.concepto,c.formaPago,c.origenFactura||'',c.sucursal||'',c.tipoConcepto||''].join(' ').toUpperCase();
-      if(!haystack.includes(q)) return false;
-    }
     return true;
   });
 }
@@ -1100,17 +969,14 @@ function actualizarVisibilidadCargaFarmacia(){
   document.getElementById('farmacia-upload-section').style.display = visible ? '' : 'none';
 }
 // flt-empresa es compartido por Ingresos y Egresos — un solo cambio dispara el recálculo de las dos
-// secciones (cascada de sub-filtros incluida) más el resultado neto combinado.
+// secciones más el resultado neto combinado.
 document.getElementById('flt-empresa').addEventListener('change',()=>{
   actualizarVisibilidadCargaFarmacia();
   if(ingBrutos.length) renderIngresos();
-  if(egBrutos.length){ actualizarSubcats(filtrarEgresosBase()); renderEgresos(); }
+  if(egBrutos.length) renderEgresos();
   renderResultadoNeto();
 });
 actualizarVisibilidadCargaFarmacia();
-document.getElementById('ing-sucursal').addEventListener('change',()=>{ if(ingBrutos.length) renderIngresos(); });
-document.getElementById('ing-origen').addEventListener('change',()=>{ if(ingBrutos.length) renderIngresos(); });
-document.getElementById('ing-tipoconcepto').addEventListener('change',()=>{ if(ingBrutos.length) renderIngresos(); });
 
 // ══════════════════════════════════════════════════════
 // INIT
