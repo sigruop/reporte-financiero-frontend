@@ -154,6 +154,19 @@
     <div class="summary" id="ing-summary"></div>
     <div id="farmacia-panel"></div>
 
+    <!-- El desglose por categoría (ACLISA / Convenios Directos / Particular, etc.) queda acá en el
+         medio: es el puente entre lo que entró bruto (Ingresos) y lo que se descuenta vía ACLISA
+         (Egresos) más abajo. -->
+    <section class="block">
+      <div class="block-title">Resumen por categoría <span class="n" id="ing-catN"></span></div>
+      <div style="background:#fff;border:1px solid var(--paper-line);border-radius:4px;overflow:hidden;">
+        <table class="cat-tabla">
+          <thead><tr><th>Categoría</th><th class="num">Cobros</th><th class="num">Total</th><th class="num">%</th></tr></thead>
+          <tbody id="ing-cat-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
     <!-- ═══════════════════ EGRESOS ═══════════════════ -->
     <div class="section-title">Egresos</div>
     <div class="estado" id="eg-estado"></div>
@@ -191,16 +204,6 @@
         <table class="cat-tabla">
           <thead><tr><th>Tipo</th><th class="num">Cobros</th><th class="num">Total</th></tr></thead>
           <tbody id="ing-tipo-tbody"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="block">
-      <div class="block-title">Resumen por categoría <span class="n" id="ing-catN"></span></div>
-      <div style="background:#fff;border:1px solid var(--paper-line);border-radius:4px;overflow:hidden;">
-        <table class="cat-tabla">
-          <thead><tr><th>Categoría</th><th class="num">Cobros</th><th class="num">Total</th><th class="num">%</th></tr></thead>
-          <tbody id="ing-cat-tbody"></tbody>
         </table>
       </div>
     </section>
@@ -393,14 +396,10 @@ function renderEgresos(){
   const pagos=filtrarEgresos();
   const pagos_calc=pagos.filter(p=>p.categoria!=='__INTERNO__');
   const total=pagos_calc.reduce((a,p)=>a+(p.importe||0),0);
-  const sig=pagos_calc.filter(p=>empresaKey(p.origen)==='SIG').reduce((a,p)=>a+(p.importe||0),0);
-  const cemei=pagos.filter(p=>empresaKey(p.origen)==='CEMEI').reduce((a,p)=>a+(p.importe||0),0);
-  const neo=pagos.filter(p=>empresaKey(p.origen)==='NEO').reduce((a,p)=>a+(p.importe||0),0);
+  // El desglose por empresa (SIG/CEMEI/Neoform) ya lo da el filtro de Empresa de arriba — mostrarlo
+  // de nuevo acá era redundante.
   document.getElementById('eg-summary').innerHTML=`
     <div class="card"><div class="label">Total general</div><div class="value">${formatARS(total)}</div></div>
-    <div class="card sig"><div class="label">Salud Integral</div><div class="value">${formatARS(sig)}</div></div>
-    <div class="card cemei"><div class="label">CEMEI</div><div class="value">${formatARS(cemei)}</div></div>
-    <div class="card neo"><div class="label">Neoform</div><div class="value">${formatARS(neo)}</div></div>
     <div class="card"><div class="label">Pagos</div><div class="value">${pagos.length}</div></div>`;
 
   // Tabla agrupada por categoría > subcategoría > detalle (expandible)
@@ -704,16 +703,10 @@ function filtrarIngresos(){
 function renderIngresos(){
   const cobros=filtrarIngresos();
   const total=cobros.reduce((a,c)=>a+(c.monto||0),0);
-  const sig=cobros.filter(c=>empresaKey(c.empresa)==='SIG').reduce((a,c)=>a+(c.monto||0),0);
-  const cemei=cobros.filter(c=>empresaKey(c.empresa)==='CEMEI').reduce((a,c)=>a+(c.monto||0),0);
-  const neo=cobros.filter(c=>empresaKey(c.empresa)==='NEO').reduce((a,c)=>a+(c.monto||0),0);
-  const farmacia=cobros.filter(c=>empresaKey(c.empresa)==='FARMACIA').reduce((a,c)=>a+(c.monto||0),0);
+  // El desglose por empresa (SIG/CEMEI/Neoform/Farmacia) ya lo da el filtro de Empresa de arriba —
+  // mostrarlo de nuevo acá era redundante.
   document.getElementById('ing-summary').innerHTML=`
     <div class="card"><div class="label">Total cobrado</div><div class="value">${formatARS(total)}</div></div>
-    <div class="card sig"><div class="label">Salud Integral</div><div class="value">${formatARS(sig)}</div></div>
-    <div class="card cemei"><div class="label">CEMEI</div><div class="value">${formatARS(cemei)}</div></div>
-    <div class="card neo"><div class="label">Neoform</div><div class="value">${formatARS(neo)}</div></div>
-    <div class="card farmacia"><div class="label">Farmacia</div><div class="value">${formatARS(farmacia)}</div></div>
     <div class="card"><div class="label">Cobros</div><div class="value">${cobros.length}</div></div>`;
 
   renderFarmaciaPanel(cobros);
