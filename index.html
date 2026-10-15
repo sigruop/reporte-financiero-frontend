@@ -588,11 +588,17 @@ function parsearCSVFarmaciaCliente(texto){
     // IN (vuelto) y EG (retiro de caja) no son venta ni cobranza ni cobro real — se descartan
     // por completo, no se envían al backend.
     if(!['FV','NC','RC'].includes(prefijo)) continue;
-    const emision=(campos[idx['Emision']]||'').trim(); // dd/mm/yyyy
-    const m=emision.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    const emision=(campos[idx['Emision']]||'').trim(); // d/m/yyyy o dd/mm/yyyy — el export NO
+    // siempre trae cero a la izquierda (confirmado con el CSV real de septiembre: "1/9/2026", no
+    // "01/09/2026" — septiembre es el mes "9", así que TODAS las filas tenían mes de un solo
+    // dígito y el regex viejo, que exigía \d{2} para día y mes, no matcheaba ninguna). Acepta 1 o 2
+    // dígitos y normaliza con padStart, porque "periodo" (YYYY-MM) se compara como texto más abajo
+    // (generarCobrosFarmacia/obtenerDeudaFarmacia) y sin el cero "2026-9" ordena mal contra "2026-08"/"2026-10".
+    const m=emision.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if(!m) continue; // fila sin fecha utilizable
+    const diaPad=m[1].padStart(2,'0'), mesPad=m[2].padStart(2,'0');
     filas.push({
-      periodo:`${m[3]}-${m[2]}`, comprobante, prefijo, fecha:emision,
+      periodo:`${m[3]}-${mesPad}`, comprobante, prefijo, fecha:`${diaPad}/${mesPad}/${m[3]}`,
       cliente:(campos[idx['Cliente']]||'').trim(), total:parsearNumeroARFarmacia(campos[idx['Total']]),
       cobertura:parsearNumeroARFarmacia(campos[idx['Cobertura']]), ctaCte:parsearNumeroARFarmacia(campos[idx['Cta. Cte.']]),
       efectivo:parsearNumeroARFarmacia(campos[idx['Efectivo']]), debito:parsearNumeroARFarmacia(campos[idx['Debito']]),
