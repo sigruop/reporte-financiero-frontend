@@ -58,6 +58,8 @@
   .summary .card.neo .value{color:var(--neo);}
   .summary .card.farmacia .value{color:#7A5E2E;}
   section.block{margin-bottom:32px;}
+  .section-title{font-family:var(--sans);font-size:24px;font-weight:800;letter-spacing:-0.01em;margin:40px 0 16px;padding-top:28px;border-top:2px solid var(--ink);}
+  .section-title:first-of-type{margin-top:8px;padding-top:0;border-top:none;}
   .block-title{font-family:var(--sans);font-size:18px;font-weight:700;letter-spacing:-0.01em;display:flex;align-items:baseline;gap:8px;margin-bottom:12px;}
   .block-title .n{font-family:var(--mono);font-size:12.5px;color:var(--muted);}
   .chart-card{background:#fff;border:1px solid var(--paper-line);border-radius:8px;padding:20px;height:340px;}
@@ -104,89 +106,19 @@
       </div>
       <div class="hero-stamp" id="stampFecha">Actualizado: —</div>
     </div>
-    <div class="tabs">
-      <button class="tab active" onclick="cambiarTab('egresos',this)">Egresos</button>
-      <button class="tab" onclick="cambiarTab('ingresos',this)">Ingresos</button>
-    </div>
   </div>
 </div>
 <div class="wrap">
 
-  <!-- ═══════════════════ EGRESOS ═══════════════════ -->
-  <div id="tab-egresos" class="tab-panel active">
+  <div id="tab-financiero" class="tab-panel active">
+    <!-- ═══════ FILTROS GENERALES (comunes a Ingresos y Egresos) ═══════ -->
     <div class="filters">
-      <div class="field"><label>Período</label><input type="month" id="eg-periodo"/></div>
-      <div class="field"><label>Fecha desde</label><input type="date" id="eg-desde"/></div>
-      <div class="field"><label>Fecha hasta</label><input type="date" id="eg-hasta"/></div>
+      <div class="field"><label>Período</label><input type="month" id="flt-periodo"/></div>
+      <div class="field"><label>Fecha desde</label><input type="date" id="flt-desde"/></div>
+      <div class="field"><label>Fecha hasta</label><input type="date" id="flt-hasta"/></div>
       <div class="field">
         <label>Empresa</label>
-        <select id="eg-empresa">
-          <option value="">Todas las empresas</option>
-          <option value="SIG">Salud Integral (SIG)</option>
-          <option value="CEMEI">SIG Clínica (CEMEI)</option>
-          <option value="NEO">Neoform</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Unidad CEMEI</label>
-        <select id="eg-unidad">
-          <option value="">Todas</option>
-          <option value="CEMEI SRL">CEMEI SRL</option>
-          <option value="CEMEI Odontología">CEMEI Odontología</option>
-          <option value="Farmacia">Farmacia</option>
-          <option value="Medicina Laboral">Medicina Laboral</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Categoría</label>
-        <select id="eg-cat" class="wide"><option value="">Todas</option></select>
-      </div>
-      <div class="field">
-        <label>Subcategoría</label>
-        <select id="eg-sub" class="wide"><option value="">Todas</option></select>
-      </div>
-      <div class="field" style="min-width:210px;display:none">
-        <label>URL del backend</label>
-        <input type="text" id="eg-backend" value="https://reporte-financiero-backend.onrender.com"/>
-      </div>
-      <button class="btn" onclick="consultarEgresos()">Consultar</button>
-    </div>
-    <div class="estado" id="eg-estado"></div>
-    <div class="summary" id="eg-summary"></div>
-
-    <section class="block">
-      <div class="block-title">Por categoría y subcategoría <span class="n" id="eg-catN"></span></div>
-      <table class="cat-tabla">
-        <thead><tr><th>Categoría / Subcategoría</th><th class="num">Pagos</th><th class="num">Total</th></tr></thead>
-        <tbody id="eg-cat-tbody"></tbody>
-      </table>
-    </section>
-
-    <section class="block">
-      <div class="block-title">Importe por subcategoría <span class="n" id="eg-rubroN"></span></div>
-      <div class="chart-card"><canvas id="eg-chart"></canvas></div>
-    </section>
-
-    <section class="block">
-      <div class="block-title">Pagos <span class="n" id="eg-tablaN"></span><button class="btn-xs" onclick="exportarEgresosCSV()">⬇ Excel</button></div>
-      <div class="table-scroll">
-        <table class="pagos-tabla">
-          <thead><tr><th>Fecha</th><th>Empresa</th><th>Categoría</th><th>Subcategoría</th><th>Proveedor</th><th class="num">Importe</th><th>Concepto</th></tr></thead>
-          <tbody id="eg-tbody"></tbody>
-        </table>
-      </div>
-    </section>
-  </div>
-
-  <!-- ═══════════════════ INGRESOS ═══════════════════ -->
-  <div id="tab-ingresos" class="tab-panel">
-    <div class="filters">
-      <div class="field"><label>Período</label><input type="month" id="ing-periodo"/></div>
-      <div class="field"><label>Fecha desde</label><input type="date" id="ing-desde"/></div>
-      <div class="field"><label>Fecha hasta</label><input type="date" id="ing-hasta"/></div>
-      <div class="field">
-        <label>Empresa</label>
-        <select id="ing-empresa">
+        <select id="flt-empresa">
           <option value="">Todas las empresas</option>
           <option value="SIG">Salud Integral (SIG)</option>
           <option value="CEMEI">SIG Clínica (CEMEI)</option>
@@ -194,6 +126,18 @@
           <option value="FARMACIA">Farmacia</option>
         </select>
       </div>
+      <div class="field" style="min-width:210px;display:none">
+        <label>URL del backend</label>
+        <input type="text" id="flt-backend" value="https://reporte-financiero-backend.onrender.com"/>
+      </div>
+      <button class="btn" onclick="consultarTodo()">Consultar</button>
+    </div>
+
+    <div id="resultado-neto" class="summary" style="display:none"></div>
+
+    <!-- ═══════════════════ INGRESOS ═══════════════════ -->
+    <div class="section-title">Ingresos</div>
+    <div class="filters">
       <div class="field">
         <label>Sucursal</label>
         <select id="ing-sucursal"><option value="">Todas</option></select>
@@ -217,15 +161,10 @@
           <option value="Seña / Descartable">Seña / Descartable</option>
         </select>
       </div>
-      <div class="field" style="min-width:210px;display:none">
-        <label>URL del backend</label>
-        <input type="text" id="ing-backend" value="https://reporte-financiero-backend.onrender.com"/>
-      </div>
       <div class="field" style="min-width:220px;">
         <label>Buscar</label>
         <input type="text" id="ing-buscar" placeholder="Cliente, concepto, empresa..." oninput="if(ingBrutos.length) renderIngresos()"/>
       </div>
-      <button class="btn" onclick="consultarIngresos()">Consultar</button>
     </div>
 
     <section class="block" id="farmacia-upload-section" style="margin-bottom:20px;">
@@ -283,6 +222,54 @@
         </table>
       </div>
     </section>
+
+    <!-- ═══════════════════ EGRESOS ═══════════════════ -->
+    <div class="section-title">Egresos</div>
+    <div class="filters">
+      <div class="field">
+        <label>Unidad CEMEI</label>
+        <select id="eg-unidad">
+          <option value="">Todas</option>
+          <option value="CEMEI SRL">CEMEI SRL</option>
+          <option value="CEMEI Odontología">CEMEI Odontología</option>
+          <option value="Farmacia">Farmacia</option>
+          <option value="Medicina Laboral">Medicina Laboral</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Categoría</label>
+        <select id="eg-cat" class="wide"><option value="">Todas</option></select>
+      </div>
+      <div class="field">
+        <label>Subcategoría</label>
+        <select id="eg-sub" class="wide"><option value="">Todas</option></select>
+      </div>
+    </div>
+    <div class="estado" id="eg-estado"></div>
+    <div class="summary" id="eg-summary"></div>
+
+    <section class="block">
+      <div class="block-title">Por categoría y subcategoría <span class="n" id="eg-catN"></span></div>
+      <table class="cat-tabla">
+        <thead><tr><th>Categoría / Subcategoría</th><th class="num">Pagos</th><th class="num">Total</th></tr></thead>
+        <tbody id="eg-cat-tbody"></tbody>
+      </table>
+    </section>
+
+    <section class="block">
+      <div class="block-title">Importe por subcategoría <span class="n" id="eg-rubroN"></span></div>
+      <div class="chart-card"><canvas id="eg-chart"></canvas></div>
+    </section>
+
+    <section class="block">
+      <div class="block-title">Pagos <span class="n" id="eg-tablaN"></span><button class="btn-xs" onclick="exportarEgresosCSV()">⬇ Excel</button></div>
+      <div class="table-scroll">
+        <table class="pagos-tabla">
+          <thead><tr><th>Fecha</th><th>Empresa</th><th>Categoría</th><th>Subcategoría</th><th>Proveedor</th><th class="num">Importe</th><th>Concepto</th></tr></thead>
+          <tbody id="eg-tbody"></tbody>
+        </table>
+      </div>
+    </section>
   </div>
 
   <footer>Datos provistos por las APIs internas de SOEM Group — uso interno</footer>
@@ -307,8 +294,7 @@ function aplicarPeriodo(prefijo){
   document.getElementById(`${prefijo}-desde`).value=`${per}-01`;
   document.getElementById(`${prefijo}-hasta`).value=ultimoDiaMes(per);
 }
-document.getElementById('eg-periodo').addEventListener('change',()=>aplicarPeriodo('eg'));
-document.getElementById('ing-periodo').addEventListener('change',()=>aplicarPeriodo('ing'));
+document.getElementById('flt-periodo').addEventListener('change',()=>aplicarPeriodo('flt'));
 const formatARS=n=>new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:0}).format(n||0);
 const formatFecha=iso=>{ if(!iso) return '—'; const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; };
 const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -353,11 +339,26 @@ function badgeEmpresa(origen){
   return `<span class="badge ${k.toLowerCase()}">${etiqueta}</span>`;
 }
 
-function cambiarTab(id,btn){
-  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById('tab-'+id).classList.add('active');
-  btn.classList.add('active');
+// Ingresos y Egresos viven en una sola pantalla, con los mismos filtros de período/empresa — un
+// solo botón "Consultar" dispara las dos consultas (son dos endpoints distintos del backend) y al
+// terminar ambas se recalcula el resultado neto del período.
+async function consultarTodo(){
+  await Promise.all([consultarEgresos(), consultarIngresos()]);
+  renderResultadoNeto();
+}
+
+function renderResultadoNeto(){
+  const el=document.getElementById('resultado-neto');
+  if(!ingBrutos.length && !egBrutos.length){ el.style.display='none'; return; }
+  const emp=document.getElementById('flt-empresa').value;
+  const totalIngresos=(emp?ingBrutos.filter(c=>empresaKey(c.empresa)===emp):ingBrutos).reduce((a,c)=>a+(c.monto||0),0);
+  const totalEgresos=egBrutos.filter(p=>p.categoria!=='__INTERNO__' && (!emp||empresaKey(p.origen)===emp)).reduce((a,p)=>a+(p.importe||0),0);
+  const neto=totalIngresos-totalEgresos;
+  el.style.display='';
+  el.innerHTML=`
+    <div class="card"><div class="label">Total ingresos</div><div class="value">${formatARS(totalIngresos)}</div></div>
+    <div class="card"><div class="label">Total egresos</div><div class="value">${formatARS(totalEgresos)}</div></div>
+    <div class="card ${neto>=0?'sig':'cemei'}"><div class="label">Resultado neto</div><div class="value">${formatARS(neto)}</div></div>`;
 }
 
 // ══════════════════════════════════════════════════════
@@ -397,9 +398,9 @@ async function fetchConDespertar(url, estadoEl, limiteMs = 90000) {
 }
 
 async function consultarEgresos(){
-  const desde=document.getElementById('eg-desde').value;
-  const hasta=document.getElementById('eg-hasta').value;
-  const backend=document.getElementById('eg-backend').value.trim().replace(/\/$/,'');
+  const desde=document.getElementById('flt-desde').value;
+  const hasta=document.getElementById('flt-hasta').value;
+  const backend=document.getElementById('flt-backend').value.trim().replace(/\/$/,'');
   const estado=document.getElementById('eg-estado');
   if(!desde){ estado.textContent='La fecha "desde" es obligatoria.'; estado.className='estado error'; return; }
   estado.className='estado'; estado.textContent='Consultando…';
@@ -420,6 +421,7 @@ async function consultarEgresos(){
     poblarFiltrosCat(egBrutos);
     poblarSucursalEg(egBrutos);
     renderEgresos();
+    renderResultadoNeto();
   }catch(err){
     estado.className='estado error';
     estado.textContent=`Error: ${err.message}`;
@@ -455,7 +457,7 @@ function actualizarSubcats(pagos){
 }
 
 function filtrarEgresos(){
-  const emp=document.getElementById('eg-empresa').value;
+  const emp=document.getElementById('flt-empresa').value;
   const uni=document.getElementById('eg-unidad').value;
   const cat=document.getElementById('eg-cat').value;
   const sub=document.getElementById('eg-sub').value;
@@ -640,14 +642,14 @@ function toggleSub(e,subId){
   rows.forEach(row=>row.style.display=open?'none':'');
 }
 
-// Listeners cascada
-document.getElementById('eg-empresa').addEventListener('change',()=>{ if(egBrutos.length){ actualizarSubcats(filtrarEgresosBase()); renderEgresos(); }});
+// Listeners cascada (el de flt-empresa, compartido con Ingresos, se registra más abajo junto con
+// el resto de los efectos que dispara el cambio de empresa)
 document.getElementById('eg-unidad').addEventListener('change',()=>{ if(egBrutos.length){ actualizarSubcats(filtrarEgresosBase()); renderEgresos(); }});
 document.getElementById('eg-cat').addEventListener('change',()=>{ if(egBrutos.length){ actualizarSubcats(filtrarEgresosBase()); renderEgresos(); }});
 document.getElementById('eg-sub').addEventListener('change',()=>{ if(egBrutos.length) renderEgresos(); });
 
 function filtrarEgresosBase(){
-  const emp=document.getElementById('eg-empresa').value;
+  const emp=document.getElementById('flt-empresa').value;
   const uni=document.getElementById('eg-unidad').value;
   const cat=document.getElementById('eg-cat').value;
   return egBrutos.filter(p=>{
@@ -710,7 +712,7 @@ function parsearCSVFarmaciaCliente(texto){
 async function procesarFarmaciaCSV(){
   const input=document.getElementById('farmacia-archivo');
   const estado=document.getElementById('farmacia-upload-estado');
-  const backend=document.getElementById('ing-backend').value.trim().replace(/\/$/,'');
+  const backend=document.getElementById('flt-backend').value.trim().replace(/\/$/,'');
   if(!input.files || !input.files[0]){ estado.style.color='var(--cemei)'; estado.textContent='Elegí un archivo primero.'; return; }
   estado.style.color='var(--muted)'; estado.textContent='Leyendo archivo…';
   try{
@@ -775,9 +777,9 @@ function renderFarmaciaPanel(cobros){
 }
 
 async function consultarIngresos(){
-  const desde=document.getElementById('ing-desde').value;
-  const hasta=document.getElementById('ing-hasta').value;
-  const backend=document.getElementById('ing-backend').value.trim().replace(/\/$/,'');
+  const desde=document.getElementById('flt-desde').value;
+  const hasta=document.getElementById('flt-hasta').value;
+  const backend=document.getElementById('flt-backend').value.trim().replace(/\/$/,'');
   const estado=document.getElementById('ing-estado');
   if(!desde){ estado.textContent='La fecha "desde" es obligatoria.'; estado.className='estado error'; return; }
   estado.className='estado'; estado.textContent='Consultando…';
@@ -789,6 +791,7 @@ async function consultarIngresos(){
     document.getElementById('stampFecha').textContent=`Actualizado: ${new Date().toLocaleString('es-AR')}`;
     poblarFiltroSucursal(data.cobros);
     renderIngresos();
+    renderResultadoNeto();
   }catch(err){
     estado.className='estado error';
     estado.textContent=`Error: ${err.message}`;
@@ -811,7 +814,7 @@ function poblarFiltroSucursal(cobros){
 }
 
 function filtrarIngresos(){
-  const emp=document.getElementById('ing-empresa').value;
+  const emp=document.getElementById('flt-empresa').value;
   const suc=document.getElementById('ing-sucursal').value;
   const ori=document.getElementById('ing-origen').value;
   const tc=document.getElementById('ing-tipoconcepto').value;
@@ -1092,13 +1095,17 @@ function exportarIngresosCSV(){
 // La carga de ventas de Farmacia solo tiene sentido cuando se está mirando Farmacia (o "todas las
 // empresas") — con SIG/CEMEI/Neo elegidos puntualmente no corresponde mostrarla.
 function actualizarVisibilidadCargaFarmacia(){
-  const emp=document.getElementById('ing-empresa').value;
+  const emp=document.getElementById('flt-empresa').value;
   const visible = emp==='' || emp==='FARMACIA';
   document.getElementById('farmacia-upload-section').style.display = visible ? '' : 'none';
 }
-document.getElementById('ing-empresa').addEventListener('change',()=>{
+// flt-empresa es compartido por Ingresos y Egresos — un solo cambio dispara el recálculo de las dos
+// secciones (cascada de sub-filtros incluida) más el resultado neto combinado.
+document.getElementById('flt-empresa').addEventListener('change',()=>{
   actualizarVisibilidadCargaFarmacia();
   if(ingBrutos.length) renderIngresos();
+  if(egBrutos.length){ actualizarSubcats(filtrarEgresosBase()); renderEgresos(); }
+  renderResultadoNeto();
 });
 actualizarVisibilidadCargaFarmacia();
 document.getElementById('ing-sucursal').addEventListener('change',()=>{ if(ingBrutos.length) renderIngresos(); });
@@ -1108,9 +1115,9 @@ document.getElementById('ing-tipoconcepto').addEventListener('change',()=>{ if(i
 // ══════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════
-['eg-desde','ing-desde'].forEach(id=>document.getElementById(id).value=primerDiaMes());
-['eg-hasta','ing-hasta'].forEach(id=>document.getElementById(id).value=hoyISO());
-['eg-periodo','ing-periodo'].forEach(id=>document.getElementById(id).value=hoyISO().slice(0,7));
+document.getElementById('flt-desde').value=primerDiaMes();
+document.getElementById('flt-hasta').value=hoyISO();
+document.getElementById('flt-periodo').value=hoyISO().slice(0,7);
 </script>
 </body>
 </html>
