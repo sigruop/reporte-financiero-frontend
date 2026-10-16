@@ -99,6 +99,7 @@
   .blk-r{display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
   .blk-total{font-size:26px;font-weight:800;letter-spacing:-.01em;color:var(--accent);}
   .blk-s .warn{color:var(--noop);font-weight:700;}
+  .aviso.info{background:#EEF3FB;border-color:#CBD8EE;color:var(--navy2);font-weight:500;}
   .aviso{background:var(--neg-soft);border:1px solid var(--neg-mid);color:var(--neg);border-radius:10px;padding:12px 16px;font-weight:600;font-size:14px;margin-bottom:14px;}
   .blk-btns{display:flex;gap:8px;}
   .vacio-blk{padding:26px 22px;color:var(--muted);font-style:italic;}
@@ -312,6 +313,7 @@ let egChart=null, ingChart=null;
 let egBrutos=[], ingBrutos=[];          // datos tal como llegan del backend
 let ingClas=[], egClas=[];              // lo mismo, ya clasificado: [{c|p, k:{tipo,cat,sub,det,o}, e:empresaKey}]
 let ingFarmaciaDeuda={cobertura:0,ctaCtePendiente:0,meses:[]};
+let ingExcl={n:0,monto:0};              // cobros que se descartan al cargar (rendiciones de caja de Farmacia)
 let ingOk=false, egOk=false, enLote=false;
 
 const hoyISO=()=>new Date().toISOString().slice(0,10);
@@ -792,6 +794,13 @@ async function consultarEgresos(){
   }
 }
 
+// Rendiciones de caja de Farmacia: cobros de la caja de CEMEI (sucursal Farmacia, cliente SAMED, concepto
+// "RENDICION DE CAJAS: <cajera>" o "TRANSPORTE TOTAL DE RENDICIONES DE CAJA"). Es el efectivo que la cajera
+// entrega, el MISMO que ya está contado en las ventas de Farmacia (CSV del punto de venta): sumarlo duplicaba
+// el efectivo (confirmado por Gustavo). Se descartan al cargar, así no entran en ningún total.
+const RE_RENDICION=/RENDICION(ES)? DE CAJA/;
+const esRendicionCajaFarmacia=c=>empresaKey(c.empresa,c.sucursal)==='FARMACIA' && RE_RENDICION.test(normT(c.concepto));
+
 async function consultarIngresos(){
   const desde=document.getElementById('flt-desde').value;
   const hasta=document.getElementById('flt-hasta').value;
@@ -801,11 +810,13 @@ async function consultarIngresos(){
   estado.className='estado'; estado.textContent='Consultando ingresos…';
   try{
     const data=await fetchConDespertar(`${backend}/api/cobros?desde=${desde}&hasta=${hasta||desde}`, estado);
-    ingBrutos=data.cobros;
+    const rend=data.cobros.filter(esRendicionCajaFarmacia);
+    ingExcl={n:rend.length,monto:rend.reduce((a,c)=>a+(c.monto||0),0)};
+    ingBrutos=data.cobros.filter(c=>!esRendicionCajaFarmacia(c));
     ingClas=ingBrutos.map(c=>({c,k:clasificarIngreso(c),e:empresaKey(c.empresa,c.sucursal)}));
     ingFarmaciaDeuda=data.farmaciaDeuda||{cobertura:0,ctaCtePendiente:0,meses:[]};
     ingOk=true;
-    estado.textContent=`${data.total} cobros — Total: ${formatARS(data.totalCobrado)}`;
+    estado.textContent=`${ingBrutos.length} cobros — Total: ${formatARS(ingBrutos.reduce((a,c)=>a+(c.monto||0),0))}`;
     document.getElementById('stampFecha').textContent=`Actualizado: ${new Date().toLocaleString('es-AR')}`;
     if(!enLote) renderReporte();
   }catch(err){
@@ -918,6 +929,9 @@ function renderReporte(){
   const faltan=[!ingOk&&'ingresos',!egOk&&'egresos'].filter(Boolean);
   document.getElementById('aviso').innerHTML=faltan.length
     ? `<div class="aviso">No se pudieron cargar los ${faltan.join(' ni los ')}: el resultado de abajo está incompleto. Volvé a tocar Consultar.</div>` : '';
+  if(ingExcl.n && (!emp||emp==='FARMACIA')){
+    document.getElementById('aviso').innerHTML+=`<div class="aviso info">No se suman ${ingExcl.n} rendiciones de caja de Farmacia (${formatARS(ingExcl.monto)}): es el mismo efectivo que ya está en las ventas de Farmacia, sumarlas lo duplicaba.</div>`;
+  }
 
   // ── Resumen ──
   const kRow=(l,v,cls)=>`<div class="kpi-row"><span>${l}</span><b class="${cls||''}">${formatARS(v)}</b></div>`;
@@ -1000,7 +1014,13 @@ function dibujarGraficos(aIngOp,aEgOp){
 function renderFarmaciaPanel(cobros){
   const panel=document.getElementById('farmacia-panel');
   const farm=cobros.filter(c=>empresaKey(c.empresa,c.sucursal)==='FARMACIA');
-  if(farm.length===0){ panel.innerHTML=''; return; }
+  if(farm.length===0){
+    const emp=document.getElementById('flt-empresa').value;
+    panel.innerHTML=(emp===''||emp==='FARMACIA')
+      ? '<div class="block-title">Farmacia — cobrado del período, por forma de pago</div><div class="vacio-blk" style="background:#fff;border:1px dashed #B5C0D0;border-radius:12px;">No hay ventas de Farmacia cargadas para este período. Subí el CSV del punto de venta (arriba) para ver sus ingresos.</div>'
+      : '';
+    return;
+  }
   const ORDEN_FP=['Efectivo','Debito','Credito','MercadoPago','PuntosPago','Transferencia','QR'];
   const ETIQUETAS_FP={Efectivo:'Efectivo',Debito:'Débito',Credito:'Crédito',MercadoPago:'Mercado Pago',PuntosPago:'Puntos de pago',Transferencia:'Transferencias',QR:'QR'};
   const porFP={};
@@ -1020,7 +1040,7 @@ const LIM_FILAS=1000;
 const pillTipo=k=>`<span class="pill ${k.tipo==='OP'?'op':'noop'}">${k.tipo==='OP'?'Operativo':'No operativo'}</span>`;
 
 function renderDetalle(ing,egr){
-  renderFarmaciaPanel(ing.map(x=>x.c));
+  renderFarmaciaPanel(ing.filter(x=>x.k.tipo==='OP').map(x=>x.c));
 
   // Forma de pago: cobros operativos, sin Farmacia (tiene su propio panel arriba)
   const porFP={};
