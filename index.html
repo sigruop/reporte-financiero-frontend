@@ -5,232 +5,300 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Reporte Financiero — SOEM Group</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
   :root{
-    --ink:#1C2B33;--paper:#F9F7F3;--paper-line:#E7E1D3;
-    --sig:#0F6657;--sig-soft:#E4F0EC;
-    --cemei:#B5563C;--cemei-soft:#F6E8E2;
+    --navy:#0E1B31;--navy2:#1B3157;
+    --bg:#F2F4F8;--card:#FFFFFF;--line:#DCE2EB;--line2:#EBEFF5;
+    --ink:#132033;--muted:#566377;
+    /* Ingresos / Egresos / No operativo: cada bloque del reporte tiene su color propio */
+    --pos:#0B7F55;--pos-soft:#E6F5EE;--pos-mid:#C6E8D8;
+    --neg:#C2362D;--neg-soft:#FCECEA;--neg-mid:#F7CFCB;
+    --noop:#A65D00;--noop-soft:#FFF3DC;--noop-mid:#F9DFAE;
+    /* Empresas */
+    --sig:#0F6657;--sig-soft:#E1F1EC;
+    --cemei:#B5563C;--cemei-soft:#F8E8E2;
     --neo:#2E5E8E;--neo-soft:#E2ECF6;
     --laboral:#5E7A4A;--laboral-soft:#E8EDE0;
-    --muted:#75705F;
-    --hero-bg:#1B1F27;--hero-bg2:#242A35;
-    --accent:#E7A33E;--accent-soft:#F2C579;
-    --display:'Source Serif 4',Georgia,serif;
-    --mono:'IBM Plex Mono',ui-monospace,monospace;
-    --sans:'Inter',system-ui,sans-serif;
+    --farm:#7A5E2E;--farm-soft:#F5EFE0;
+    --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   }
   *{box-sizing:border-box;}
-  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14.5px;line-height:1.5;-webkit-font-smoothing:antialiased;}
-  .wrap{max-width:1180px;margin:0 auto;padding:28px 24px 80px;}
-  .hero{background:linear-gradient(155deg,var(--hero-bg),var(--hero-bg2));}
-  .hero-inner{max-width:1180px;margin:0 auto;padding:28px 24px 0;}
-  .hero-top{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:24px;}
-  .hero-title{font-family:var(--sans);font-weight:700;font-size:31px;letter-spacing:-0.015em;color:#fff;}
-  .hero-sub{font-family:var(--mono);font-size:12.5px;color:var(--accent-soft);text-transform:uppercase;letter-spacing:0.08em;margin-top:6px;}
-  .hero-stamp{font-family:var(--mono);font-size:12.5px;color:#A7B0BE;text-align:right;line-height:1.7;}
-  .tabs{display:flex;gap:8px;}
-  .tab{font-family:var(--sans);font-size:14.5px;font-weight:600;padding:11px 24px 13px;cursor:pointer;border:none;background:rgba(255,255,255,0.07);color:#C7CFDA;border-radius:10px 10px 0 0;transition:background 0.15s,color 0.15s;}
-  .tab.active{background:var(--paper);color:var(--ink);}
-  .tab:hover:not(.active){background:rgba(255,255,255,0.14);color:#fff;}
-  .tab-panel{display:none;}
-  .tab-panel.active{display:block;}
-  .filters{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;background:#fff;border:1px solid var(--paper-line);border-radius:8px;padding:16px 18px;margin-bottom:20px;}
+  html{scroll-behavior:smooth;scroll-padding-top:62px;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;}
+  .wrap{max-width:1240px;margin:0 auto;padding:26px 24px 90px;}
+
+  /* ── Encabezado y navegación ── */
+  .hero{background:linear-gradient(135deg,#0A1527 0%,#1B3157 100%);}
+  .hero-inner{max-width:1240px;margin:0 auto;padding:30px 24px 26px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;}
+  .hero-title{font-weight:800;font-size:34px;letter-spacing:-0.02em;color:#fff;line-height:1.1;}
+  .hero-sub{font-size:13px;font-weight:600;color:#A9BEE0;text-transform:uppercase;letter-spacing:.09em;margin-top:9px;}
+  .hero-stamp{font-size:13px;color:#A9BEE0;text-align:right;}
+  .nav{position:sticky;top:0;z-index:30;background:var(--navy);border-top:1px solid rgba(255,255,255,.08);box-shadow:0 4px 14px rgba(14,27,49,.28);}
+  .nav-inner{max-width:1240px;margin:0 auto;padding:0 24px;display:flex;gap:2px;overflow-x:auto;}
+  .nav a{color:#C9D6EC;text-decoration:none;font-weight:600;font-size:14px;padding:13px 16px 11px;white-space:nowrap;border-bottom:3px solid transparent;}
+  .nav a:hover{color:#fff;border-bottom-color:#6F9BF5;}
+
+  /* ── Filtros ── */
+  .filters{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:14px;box-shadow:0 1px 2px rgba(19,32,51,.05);}
   .field{display:flex;flex-direction:column;gap:6px;}
-  .field label{font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);font-weight:600;}
-  .field input,.field select{font-family:var(--mono);font-size:14px;border:1px solid var(--paper-line);border-radius:5px;padding:8px 11px;background:var(--paper);color:var(--ink);}
-  .field input{min-width:136px;}
-  .field select{min-width:160px;cursor:pointer;}
-  .field select.wide{min-width:220px;}
-  .field input:focus,.field select:focus{outline:2px solid var(--ink);outline-offset:1px;}
-  .btn{font-family:var(--sans);font-weight:600;font-size:14px;background:var(--ink);color:var(--paper);border:none;border-radius:5px;padding:10px 22px;cursor:pointer;}
-  .btn:hover{background:#0e1a20;}
-  .btn-xs{font-family:var(--sans);font-weight:600;font-size:12.5px;background:#fff;color:var(--ink);border:1px solid var(--paper-line);border-radius:5px;padding:6px 12px;cursor:pointer;margin-left:auto;}
-  .btn-xs:hover{background:var(--paper);border-color:var(--ink);}
-  .estado{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin:-8px 0 18px;min-height:16px;}
-  .estado.error{color:var(--cemei);}
-  .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--paper-line);border:1px solid var(--paper-line);margin-bottom:28px;border-radius:8px;overflow:hidden;}
-  .summary .card{background:#fff;padding:18px 20px;}
-  .summary .card .label{font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);font-weight:600;margin-bottom:8px;}
-  .summary .card .value{font-family:var(--mono);font-size:23px;font-weight:600;font-variant-numeric:tabular-nums;}
-  .summary .card.sig .value{color:var(--sig);}
-  .summary .card.cemei .value{color:var(--cemei);}
-  .summary .card.neo .value{color:var(--neo);}
-  .summary .card.laboral .value{color:var(--laboral);}
-  .summary .card.farmacia .value{color:#7A5E2E;}
-  section.block{margin-bottom:32px;}
-  .section-title{font-family:var(--sans);font-size:24px;font-weight:800;letter-spacing:-0.01em;margin:40px 0 16px;padding-top:28px;border-top:2px solid var(--ink);}
-  .section-title:first-of-type{margin-top:8px;padding-top:0;border-top:none;}
-  .block-title{font-family:var(--sans);font-size:18px;font-weight:700;letter-spacing:-0.01em;display:flex;align-items:baseline;gap:8px;margin-bottom:12px;}
-  .block-title .n{font-family:var(--mono);font-size:12.5px;color:var(--muted);}
-  .chart-card{background:#fff;border:1px solid var(--paper-line);border-radius:8px;padding:20px;height:340px;}
-  /* Tabla resumen categorías */
-  .cat-tabla{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--paper-line);}
-  .cat-tabla th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:600;padding:11px 12px;border-bottom:2px solid var(--ink);}
-  .cat-tabla td{padding:10px 12px;border-bottom:1px solid var(--paper-line);font-size:14px;}
-  .cat-tabla .num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap;}
-  .cat-tabla tr.cat-row td{font-weight:700;background:var(--paper);font-size:14px;}
-  .cat-tabla tr.sub-row td:first-child{padding-left:28px;color:var(--muted);}
-  .cat-tabla tr.total-row td{font-weight:700;border-top:2px solid var(--ink);padding-top:12px;}
-  .cat-tabla .arr{display:inline-block;width:14px;font-size:12.5px;color:var(--muted);cursor:pointer;user-select:none;transition:transform 0.15s;}
-  .cat-tabla tr.cat-row{cursor:pointer;}
-  .cat-tabla tr.cat-row:hover td,.cat-tabla tr.sub-row:hover td{background:var(--paper);}
-  .cat-tabla tr.det-row td{font-size:12.5px;color:var(--muted);padding-top:6px;padding-bottom:6px;}
-  /* Tabla pagos */
+  .field label{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;}
+  .field input,.field select{font-family:var(--sans);font-size:15px;font-weight:500;border:1px solid #C9D2DF;border-radius:8px;padding:9px 12px;background:#fff;color:var(--ink);}
+  .field input{min-width:140px;}
+  .field select{min-width:200px;cursor:pointer;}
+  .field input:focus,.field select:focus{outline:3px solid #BBD0FA;border-color:#4F82E8;}
+  .btn{font-family:var(--sans);font-weight:700;font-size:15px;background:var(--navy2);color:#fff;border:none;border-radius:8px;padding:11px 26px;cursor:pointer;}
+  .btn:hover{background:var(--navy);}
+  .btn-xs{font-family:var(--sans);font-weight:600;font-size:13px;background:#fff;color:var(--ink);border:1px solid #C9D2DF;border-radius:7px;padding:6px 12px;cursor:pointer;}
+  .btn-xs:hover{background:var(--bg);border-color:var(--navy2);}
+  .estados{display:flex;gap:22px;flex-wrap:wrap;margin:0 2px 6px;}
+  .estado{font-size:13px;color:var(--muted);min-height:18px;font-weight:500;}
+  .estado.error{color:var(--neg);font-weight:600;}
+  .vacio{background:var(--card);border:1px dashed #B5C0D0;border-radius:12px;padding:44px 20px;text-align:center;color:var(--muted);font-size:16px;margin-top:24px;}
+
+  /* ── Resumen: tres paneles (Operativo · No operativo · Total) ── */
+  .sec-title{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin:26px 2px 12px;}
+  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px 16px;border-top:6px solid var(--navy2);box-shadow:0 1px 2px rgba(19,32,51,.05);}
+  .kpi.noop{border-top-color:var(--noop);}
+  .kpi.total{background:linear-gradient(135deg,#0E1B31,#1B3157);border-color:var(--navy);border-top-color:#6F9BF5;color:#fff;}
+  .kpi-t{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:12px;}
+  .kpi.total .kpi-t{color:#A9BEE0;}
+  .kpi-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:6px 0;font-size:15px;}
+  .kpi-row span:first-child{color:var(--muted);font-weight:500;}
+  .kpi.total .kpi-row span:first-child{color:#C9D6EC;}
+  .kpi-row b{font-weight:700;font-size:17px;}
+  .kpi-row.big{border-top:1px solid var(--line);margin-top:8px;padding-top:12px;}
+  .kpi.total .kpi-row.big{border-top-color:rgba(255,255,255,.2);}
+  .kpi-row.big span:first-child{color:var(--ink);font-weight:800;}
+  .kpi.total .kpi-row.big span:first-child{color:#fff;}
+  .kpi-row.big b{font-size:27px;font-weight:800;letter-spacing:-.01em;}
+  .pos-txt{color:var(--pos);} .neg-txt{color:var(--neg);}
+  .kpi.total .pos-txt{color:#6EE0AE;} .kpi.total .neg-txt{color:#FF9D95;}
+
+  /* ── Bandas de sección ── */
+  .band{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:18px 24px;border-radius:14px;color:#fff;margin:46px 0 18px;}
+  .band.op{background:linear-gradient(100deg,#0E1B31,#24457A);}
+  .band.noop{background:linear-gradient(100deg,#7A4300,#B96C00);}
+  .band.tot{background:linear-gradient(100deg,#0A1527,#1B3157);}
+  .band-t{font-size:22px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;}
+  .band-s{font-size:14px;font-weight:500;opacity:.85;margin-top:2px;}
+  .band-v{font-size:26px;font-weight:800;letter-spacing:-.01em;text-align:right;}
+  .band-v small{display:block;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;opacity:.8;}
+
+  /* ── Bloques con tabla por rubro ── */
+  .blk{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:20px;overflow:hidden;border-top:6px solid var(--accent);box-shadow:0 1px 2px rgba(19,32,51,.05);}
+  .blk.ing{--accent:var(--pos);--tint:var(--pos-soft);--tint2:var(--pos-mid);}
+  .blk.egr{--accent:var(--neg);--tint:var(--neg-soft);--tint2:var(--neg-mid);}
+  .blk.noop{--accent:var(--noop);--tint:var(--noop-soft);--tint2:var(--noop-mid);}
+  .blk-h{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:16px 22px;border-bottom:1px solid var(--line);}
+  .blk-t{font-size:17px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:var(--accent);}
+  .blk-s{font-size:13px;color:var(--muted);margin-top:2px;}
+  .blk-r{display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
+  .blk-total{font-size:26px;font-weight:800;letter-spacing:-.01em;color:var(--accent);}
+  .blk-s .warn{color:var(--noop);font-weight:700;}
+  .aviso{background:var(--neg-soft);border:1px solid var(--neg-mid);color:var(--neg);border-radius:10px;padding:12px 16px;font-weight:600;font-size:14px;margin-bottom:14px;}
+  .blk-btns{display:flex;gap:8px;}
+  .vacio-blk{padding:26px 22px;color:var(--muted);font-style:italic;}
+  table.rt{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;}
+  table.rt th.c-n{width:84px;} table.rt th.c-i{width:176px;} table.rt th.c-p{width:200px;}
+  table.rt thead th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700;padding:11px 16px;background:#F7F9FC;border-bottom:1px solid var(--line);}
+  table.rt .num{text-align:right;white-space:nowrap;}
+  table.rt td{padding:11px 16px;border-bottom:1px solid var(--line2);font-size:15px;vertical-align:middle;}
+  table.rt td.num{font-weight:600;}
+  table.rt .lbl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  table.rt tr.l1 td{background:var(--tint);font-weight:800;font-size:15.5px;border-bottom:1px solid var(--tint2);}
+  table.rt tr.l1 td.num{font-weight:800;}
+  table.rt tr.l2 td{font-weight:600;}
+  table.rt tr.l2 td:first-child{padding-left:38px;}
+  table.rt tr.l3 td{color:var(--muted);font-size:14px;padding-top:8px;padding-bottom:8px;background:#FBFCFE;}
+  table.rt tr.l3 td:first-child{padding-left:64px;}
+  table.rt tr.l3 td.num{font-weight:500;}
+  table.rt tr.has-kids{cursor:pointer;}
+  table.rt tr.has-kids:hover td{filter:brightness(.97);}
+  table.rt tr.tot td{font-weight:800;font-size:16px;border-top:2px solid var(--accent);background:var(--tint2);border-bottom:none;}
+  .chev{display:inline-block;width:16px;text-align:center;font-size:12px;color:var(--accent);transition:transform .15s;flex:none;}
+  .chev::before{content:'▶';}
+  tr.open > td .chev{transform:rotate(90deg);}
+  .chev.nokids{visibility:hidden;}
+  .pc{display:flex;align-items:center;justify-content:flex-end;gap:10px;}
+  .pc span{min-width:48px;text-align:right;font-size:14px;font-weight:600;color:var(--muted);}
+  .pc .bar{width:84px;height:8px;background:var(--line2);border-radius:5px;overflow:hidden;flex:none;}
+  .pc .bar i{display:block;height:100%;background:var(--accent);border-radius:5px;}
+  .chips{display:inline-flex;gap:5px;flex-wrap:wrap;margin-left:4px;}
+  .chips .badge{font-size:10.5px;padding:2px 7px;}
+
+  /* ── Franjas de resultado ── */
+  .res{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:20px 26px;border-radius:14px;margin:6px 0 4px;}
+  .res.pos{background:var(--pos-soft);color:var(--pos);border:2px solid var(--pos-mid);}
+  .res.neg{background:var(--neg-soft);color:var(--neg);border:2px solid var(--neg-mid);}
+  .res-t{font-size:19px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;}
+  .res-s{font-size:13px;font-weight:500;opacity:.8;margin-top:2px;}
+  .res-v{font-size:32px;font-weight:800;letter-spacing:-.02em;}
+  .eq{display:flex;align-items:stretch;gap:14px;flex-wrap:wrap;}
+  .eq-box{flex:1 1 200px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 24px;}
+  .eq-box small{display:block;font-size:12.5px;text-transform:uppercase;letter-spacing:.1em;font-weight:800;color:var(--muted);margin-bottom:6px;}
+  .eq-box b{font-size:29px;font-weight:800;letter-spacing:-.02em;}
+  .eq-box.tot{background:linear-gradient(135deg,#0E1B31,#1B3157);border-color:var(--navy);}
+  .eq-box.tot small{color:#A9BEE0;}
+  .eq-box.tot b{font-size:36px;}
+  .eq-box.tot .pos-txt{color:#6EE0AE;} .eq-box.tot .neg-txt{color:#FF9D95;}
+  .eq-op{display:flex;align-items:center;font-size:30px;font-weight:700;color:var(--muted);}
+  details.nota{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 20px;margin-top:6px;font-size:14px;color:var(--muted);}
+  details.nota summary{cursor:pointer;font-weight:700;color:var(--ink);}
+  details.nota ul{margin:10px 0 2px 18px;padding:0;} details.nota li{margin:4px 0;}
+
+  /* ── Gráficos ── */
+  .charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .chart-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px 20px;box-shadow:0 1px 2px rgba(19,32,51,.05);}
+  .chart-card h3{margin:0 0 12px;font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;}
+  .chart-card.ing h3{color:var(--pos);} .chart-card.egr h3{color:var(--neg);}
+  .chart-box{position:relative;height:360px;}
+
+  /* ── Detalle ── */
+  .block-title{font-size:18px;font-weight:800;display:flex;align-items:baseline;gap:10px;margin:28px 0 12px;}
+  .block-title .n{font-size:13px;color:var(--muted);font-weight:600;}
+  .block-title .btn-xs{margin-left:auto;}
+  .table-scroll{max-height:560px;overflow:auto;border:1px solid var(--line);border-radius:12px;background:#fff;}
   table.pagos-tabla{width:100%;border-collapse:collapse;background:#fff;}
-  table.pagos-tabla thead th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:600;padding:11px 12px;border-bottom:2px solid var(--ink);position:sticky;top:0;background:#fff;white-space:nowrap;}
-  table.pagos-tabla tbody td{padding:10px 12px;border-bottom:1px solid var(--paper-line);font-size:14px;vertical-align:top;}
-  table.pagos-tabla tbody tr:hover{background:var(--paper);}
-  td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;}
-  td.small{color:var(--muted);font-size:12.5px;max-width:240px;}
-  .badge{font-family:var(--mono);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;padding:3px 8px;border-radius:4px;display:inline-block;white-space:nowrap;}
+  table.pagos-tabla thead th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;padding:12px 14px;border-bottom:2px solid var(--ink);position:sticky;top:0;background:#fff;white-space:nowrap;}
+  table.pagos-tabla tbody td{padding:10px 14px;border-bottom:1px solid var(--line2);font-size:14px;vertical-align:top;}
+  table.pagos-tabla tbody tr:hover{background:#F6F8FC;}
+  td.num,th.num{text-align:right;} td.num{font-weight:600;white-space:nowrap;}
+  td.small{color:var(--muted);font-size:13px;max-width:260px;}
+  .nota-lim{font-size:12.5px;color:var(--muted);padding:8px 4px 0;}
+  .cat-tabla{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+  .cat-tabla th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;padding:12px 14px;border-bottom:2px solid var(--ink);}
+  .cat-tabla td{padding:10px 14px;border-bottom:1px solid var(--line2);font-size:14.5px;}
+  .cat-tabla .num{text-align:right;} .cat-tabla tr.total-row td{font-weight:800;border-top:2px solid var(--ink);}
+  .badge{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 9px;border-radius:5px;display:inline-block;white-space:nowrap;}
   .badge.sig{background:var(--sig-soft);color:var(--sig);}
   .badge.cemei{background:var(--cemei-soft);color:var(--cemei);}
   .badge.neo{background:var(--neo-soft);color:var(--neo);}
   .badge.laboral{background:var(--laboral-soft);color:var(--laboral);}
-  .badge.farmacia{background:#F5EFE0;color:#7A5E2E;}
-  .pill{font-size:12.5px;color:var(--muted);background:var(--paper);border:1px solid var(--paper-line);padding:3px 9px;border-radius:12px;display:inline-block;white-space:nowrap;}
-  .table-scroll{max-height:500px;overflow:auto;border:1px solid var(--paper-line);border-radius:8px;}
-  .table-scroll table{border:none;}
-  /* Ingresos */
-  .badge.farm{background:#F5EFE0;color:#7A5E2E;}
-  .badge.odonto{background:#EDE8F5;color:#5B3E8E;}
-  footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--paper-line);font-family:var(--mono);font-size:11.5px;color:var(--muted);text-align:center;}
+  .badge.farmacia{background:var(--farm-soft);color:var(--farm);}
+  .pill{font-size:12.5px;font-weight:600;color:var(--muted);background:#F3F5F9;border:1px solid var(--line);padding:3px 10px;border-radius:12px;display:inline-block;white-space:nowrap;}
+  .pill.op{background:var(--pos-soft);border-color:var(--pos-mid);color:var(--pos);}
+  .pill.noop{background:var(--noop-soft);border-color:var(--noop-mid);color:var(--noop);}
+  .fp-card{background:#fff;border:1px solid var(--line);border-left:6px solid var(--farm);border-radius:14px;padding:18px 22px;margin-bottom:20px;}
+  .fp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:18px;}
+  .fp-l{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;margin-bottom:6px;}
+  .fp-v{font-size:20px;font-weight:700;}
+  .up-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);text-align:center;}
+  @media(max-width:900px){.kpis,.charts{grid-template-columns:1fr;} .eq-op{display:none;} .hero-title{font-size:28px;} .blk-total{font-size:22px;}
+    .wrap{padding:18px 16px 70px;} .res{flex-wrap:wrap;padding:16px 18px;} .res-v{font-size:26px;} .band-t{font-size:19px;}
+    table.rt .c-n,.pc .bar{display:none;} table.rt th.c-i{width:128px;} table.rt th.c-p{width:66px;}
+    table.rt td,table.rt thead th{padding:10px 8px;} table.rt tr.l2 td:first-child{padding-left:24px;} table.rt tr.l3 td:first-child{padding-left:40px;}
+    table.rt .lbl{flex-wrap:nowrap;align-items:flex-start;} table.rt .lbl>span:not(.chev){min-width:0;overflow-wrap:anywhere;} .chev{margin-top:3px;}
+    .pc span{min-width:0;} .chips{display:none;} .eq-box b{font-size:24px;} .eq-box.tot b{font-size:28px;}}
 </style>
 </head>
 <body>
 <div class="hero">
   <div class="hero-inner">
-    <div class="hero-top">
-      <div>
-        <div class="hero-title">Reporte Financiero</div>
-        <div class="hero-sub">Salud Integral · SIG Clínica (CEMEI) · Neoform</div>
-      </div>
-      <div class="hero-stamp" id="stampFecha">Actualizado: —</div>
+    <div>
+      <div class="hero-title">Reporte Financiero</div>
+      <div class="hero-sub">Salud Integral · CEMEI · Medicina Laboral · Neoform · Farmacia</div>
     </div>
+    <div class="hero-stamp" id="stampFecha">Actualizado: —</div>
   </div>
 </div>
-<div class="wrap">
+<nav class="nav"><div class="nav-inner">
+  <a href="#sec-resumen">Resumen</a>
+  <a href="#sec-op">Operativo</a>
+  <a href="#sec-noop">No operativo</a>
+  <a href="#sec-total">Resultado total</a>
+  <a href="#sec-graf">Gráficos</a>
+  <a href="#sec-det">Detalle</a>
+</div></nav>
 
-  <div id="tab-financiero" class="tab-panel active">
-    <!-- ═══════ FILTROS (único: Período + Empresa, compartido por todo) ═══════ -->
-    <div class="filters">
-      <div class="field"><label>Período</label><input type="month" id="flt-periodo"/></div>
-      <div class="field"><label>Fecha desde</label><input type="date" id="flt-desde"/></div>
-      <div class="field"><label>Fecha hasta</label><input type="date" id="flt-hasta"/></div>
-      <div class="field">
-        <label>Empresa</label>
-        <select id="flt-empresa">
-          <option value="">Todas las empresas</option>
-          <option value="SIG">Salud Integral (SIG)</option>
-          <option value="CEMEI">SIG Clínica (CEMEI)</option>
-          <option value="LABORAL">Medicina Laboral</option>
-          <option value="NEO">Neoform</option>
-          <option value="FARMACIA">Farmacia</option>
-        </select>
+<div class="wrap">
+  <!-- Filtros: Período + Empresa, compartidos por todo el reporte -->
+  <div class="filters">
+    <div class="field"><label>Período</label><input type="month" id="flt-periodo"/></div>
+    <div class="field"><label>Fecha desde</label><input type="date" id="flt-desde"/></div>
+    <div class="field"><label>Fecha hasta</label><input type="date" id="flt-hasta"/></div>
+    <div class="field">
+      <label>Empresa</label>
+      <select id="flt-empresa">
+        <option value="">Todas las empresas</option>
+        <option value="SIG">Salud Integral (SIG)</option>
+        <option value="CEMEI">SIG Clínica (CEMEI)</option>
+        <option value="LABORAL">Medicina Laboral</option>
+        <option value="NEO">Neoform</option>
+        <option value="FARMACIA">Farmacia</option>
+      </select>
+    </div>
+    <div class="field" style="min-width:210px;display:none">
+      <label>URL del backend</label>
+      <input type="text" id="flt-backend" value="https://reporte-financiero-backend.onrender.com"/>
+    </div>
+    <button class="btn" onclick="consultarTodo()">Consultar</button>
+  </div>
+  <div class="estados">
+    <div class="estado" id="ing-estado"></div>
+    <div class="estado" id="eg-estado"></div>
+  </div>
+
+  <!-- Carga de ventas de Farmacia (solo visible con "Todas" o "Farmacia") -->
+  <section id="farmacia-upload-section" style="margin:6px 0 4px;">
+    <div class="up-card">
+      <strong>Cargar ventas de Farmacia</strong>
+      <input type="file" id="farmacia-archivo" accept=".csv"/>
+      <button class="btn" style="padding:9px 20px;font-size:14px" onclick="procesarFarmaciaCSV()">Procesar archivo</button>
+      <span id="farmacia-upload-estado" style="font-size:13px;color:var(--muted);"></span>
+    </div>
+    <div style="font-size:12.5px;color:var(--muted);padding:6px 2px 0;">Export del punto de venta (CSV, separado por ';'). Reemplaza el/los meses que aparezcan en el archivo — no afecta otros meses.</div>
+  </section>
+
+  <div id="vacio" class="vacio">Elegí el período y la empresa, y tocá <strong>Consultar</strong> para armar el reporte.</div>
+
+  <div id="reporte" style="display:none">
+    <div id="sec-resumen"><div class="sec-title">Resumen del período</div><div id="aviso"></div><div class="kpis" id="kpis"></div></div>
+
+    <div id="sec-op"></div>
+    <div id="sec-noop"></div>
+    <div id="sec-total"></div>
+
+    <div id="sec-graf">
+      <div class="band op" style="margin-top:46px"><div><div class="band-t">Gráficos</div><div class="band-s">Rubros operativos, de mayor a menor</div></div></div>
+      <div class="charts">
+        <div class="chart-card ing"><h3>Ingresos operativos por rubro</h3><div class="chart-box"><canvas id="ing-chart"></canvas></div></div>
+        <div class="chart-card egr"><h3>Egresos operativos por rubro</h3><div class="chart-box"><canvas id="eg-chart"></canvas></div></div>
       </div>
-      <div class="field" style="min-width:210px;display:none">
-        <label>URL del backend</label>
-        <input type="text" id="flt-backend" value="https://reporte-financiero-backend.onrender.com"/>
-      </div>
-      <button class="btn" onclick="consultarTodo()">Consultar</button>
     </div>
 
-    <div id="resultado-neto" class="summary" style="display:none"></div>
+    <div id="sec-det">
+      <div class="band op" style="margin-top:46px"><div><div class="band-t">Detalle</div><div class="band-s">Cada cobro y cada pago, con su rubro y si es operativo o no</div></div></div>
+      <div id="farmacia-panel"></div>
 
-    <!-- ═══════════════════ INGRESOS ═══════════════════ -->
-    <div class="section-title">Ingresos</div>
-
-    <section class="block" id="farmacia-upload-section" style="margin-bottom:20px;">
-      <div class="block-title" style="font-size:15px;">Cargar ventas de Farmacia</div>
-      <div style="background:#fff;border:1px solid var(--paper-line);border-radius:8px;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-        <input type="file" id="farmacia-archivo" accept=".csv"/>
-        <button class="btn" onclick="procesarFarmaciaCSV()">Procesar archivo</button>
-        <span id="farmacia-upload-estado" style="font-family:var(--mono);font-size:12.5px;color:var(--muted);"></span>
-      </div>
-      <div style="font-size:11.5px;color:var(--muted);padding:6px 2px 0;">
-        Export del punto de venta (CSV, separado por ';'). Reemplaza el/los meses que aparezcan en el archivo — no afecta otros meses.
-      </div>
-    </section>
-
-    <div class="estado" id="ing-estado"></div>
-    <div class="summary" id="ing-summary"></div>
-    <div id="farmacia-panel"></div>
-
-    <!-- El desglose por categoría (ACLISA / Convenios Directos / Particular, etc.) queda acá en el
-         medio: es el puente entre lo que entró bruto (Ingresos) y lo que se descuenta vía ACLISA
-         (Egresos) más abajo. -->
-    <section class="block">
-      <div class="block-title">Resumen por categoría <span class="n" id="ing-catN"></span></div>
-      <div style="background:#fff;border:1px solid var(--paper-line);border-radius:4px;overflow:hidden;">
-        <table class="cat-tabla">
-          <thead><tr><th>Categoría</th><th class="num">Cobros</th><th class="num">Total</th><th class="num">%</th></tr></thead>
-          <tbody id="ing-cat-tbody"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- ═══════════════════ EGRESOS ═══════════════════ -->
-    <div class="section-title">Egresos</div>
-    <div class="estado" id="eg-estado"></div>
-    <div class="summary" id="eg-summary"></div>
-
-    <section class="block">
-      <div class="block-title">Por categoría y subcategoría <span class="n" id="eg-catN"></span></div>
+      <div class="block-title">Por forma de pago <span class="n" id="ing-fpN"></span></div>
       <table class="cat-tabla">
-        <thead><tr><th>Categoría / Subcategoría</th><th class="num">Pagos</th><th class="num">Total</th></tr></thead>
-        <tbody id="eg-cat-tbody"></tbody>
+        <thead><tr><th>Forma de pago</th><th class="num">Cobros</th><th class="num">Total</th></tr></thead>
+        <tbody id="ing-fp-tbody"></tbody>
       </table>
-    </section>
 
-    <section class="block">
-      <div class="block-title">Importe por categoría <span class="n" id="eg-rubroN"></span></div>
-      <div class="chart-card"><canvas id="eg-chart"></canvas></div>
-    </section>
-
-    <section class="block">
-      <div class="block-title">Pagos <span class="n" id="eg-tablaN"></span><button class="btn-xs" onclick="exportarEgresosCSV()">⬇ Excel</button></div>
+      <div class="block-title">Pagos (egresos) <span class="n" id="eg-tablaN"></span><button class="btn-xs" onclick="exportarEgresosCSV()">⬇ Excel</button></div>
       <div class="table-scroll">
         <table class="pagos-tabla">
-          <thead><tr><th>Fecha</th><th>Empresa</th><th>Categoría</th><th>Subcategoría</th><th>Proveedor</th><th class="num">Importe</th><th>Concepto</th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Empresa</th><th>Tipo</th><th>Rubro</th><th>Proveedor</th><th class="num">Importe</th><th>Concepto</th></tr></thead>
           <tbody id="eg-tbody"></tbody>
         </table>
       </div>
-    </section>
+      <div class="nota-lim" id="eg-lim"></div>
 
-    <!-- ═══════════════════ DETALLE DE INGRESOS (al final, abajo de todo) ═══════════════════ -->
-    <div class="section-title">Detalle de Ingresos</div>
-
-    <section class="block">
-      <div class="block-title">Resumen por tipo <span class="n" id="ing-tipoN"></span></div>
-      <div style="background:#fff;border:1px solid var(--paper-line);border-radius:4px;overflow:hidden;">
-        <table class="cat-tabla">
-          <thead><tr><th>Tipo</th><th class="num">Cobros</th><th class="num">Total</th></tr></thead>
-          <tbody id="ing-tipo-tbody"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="block">
-      <div class="block-title">Por forma de pago <span class="n" id="ing-fpN"></span></div>
-      <div style="background:#fff;border:1px solid var(--paper-line);border-radius:4px;overflow:hidden;">
-        <table class="cat-tabla">
-          <thead><tr><th>Forma de Pago</th><th class="num">Cobros</th><th class="num">Total</th></tr></thead>
-          <tbody id="ing-fp-tbody"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="block">
-      <div class="block-title">Detalle de cobros <span class="n" id="ing-tablaN"></span><button class="btn-xs" onclick="exportarIngresosCSV()">⬇ Excel</button></div>
+      <div class="block-title">Cobros (ingresos) <span class="n" id="ing-tablaN"></span><button class="btn-xs" onclick="exportarIngresosCSV()">⬇ Excel</button></div>
       <div class="table-scroll">
         <table class="pagos-tabla">
-          <thead><tr><th>Fecha Cobro</th><th>Empresa</th><th>Obra Social</th><th>Tipo</th><th>Cliente</th><th>Forma de Pago</th><th class="num">Monto</th><th>Concepto</th></tr></thead>
+          <thead><tr><th>Fecha cobro</th><th>Empresa</th><th>Tipo</th><th>Rubro</th><th>Cliente</th><th>Forma de pago</th><th class="num">Monto</th><th>Concepto</th></tr></thead>
           <tbody id="ing-tbody"></tbody>
         </table>
       </div>
-    </section>
+      <div class="nota-lim" id="ing-lim"></div>
+    </div>
   </div>
 
   <footer>Datos provistos por las APIs internas de SOEM Group — uso interno</footer>
@@ -238,11 +306,13 @@
 
 <script>
 // ══════════════════════════════════════════════════════
-// HELPERS
+// ESTADO + HELPERS
 // ══════════════════════════════════════════════════════
-let egChart=null;
-let egBrutos=[], ingBrutos=[];
+let egChart=null, ingChart=null;
+let egBrutos=[], ingBrutos=[];          // datos tal como llegan del backend
+let ingClas=[], egClas=[];              // lo mismo, ya clasificado: [{c|p, k:{tipo,cat,sub,det,o}, e:empresaKey}]
 let ingFarmaciaDeuda={cobertura:0,ctaCtePendiente:0,meses:[]};
+let ingOk=false, egOk=false, enLote=false;
 
 const hoyISO=()=>new Date().toISOString().slice(0,10);
 const primerDiaMes=()=>{ const d=new Date(); return new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10); };
@@ -321,31 +391,6 @@ function badgeEmpresa(origen, subUnidad){
   return `<span class="badge ${k.toLowerCase()}">${etiqueta}</span>`;
 }
 
-// Ingresos y Egresos viven en una sola pantalla, con los mismos filtros de período/empresa — un
-// solo botón "Consultar" dispara las dos consultas (son dos endpoints distintos del backend) y al
-// terminar ambas se recalcula el resultado neto del período.
-async function consultarTodo(){
-  await Promise.all([consultarEgresos(), consultarIngresos()]);
-  renderResultadoNeto();
-}
-
-function renderResultadoNeto(){
-  const el=document.getElementById('resultado-neto');
-  if(!ingBrutos.length && !egBrutos.length){ el.style.display='none'; return; }
-  const emp=document.getElementById('flt-empresa').value;
-  const totalIngresos=(emp?ingBrutos.filter(c=>empresaKey(c.empresa,c.sucursal)===emp):ingBrutos).reduce((a,c)=>a+(c.monto||0),0);
-  const totalEgresos=egBrutos.filter(p=>p.categoria!=='__INTERNO__' && (!emp||empresaKey(p.origen,p.unidad)===emp)).reduce((a,p)=>a+(p.importe||0),0);
-  const neto=totalIngresos-totalEgresos;
-  el.style.display='';
-  el.innerHTML=`
-    <div class="card"><div class="label">Total ingresos</div><div class="value">${formatARS(totalIngresos)}</div></div>
-    <div class="card"><div class="label">Total egresos</div><div class="value">${formatARS(totalEgresos)}</div></div>
-    <div class="card ${neto>=0?'sig':'cemei'}"><div class="label">Resultado neto</div><div class="value">${formatARS(neto)}</div></div>`;
-}
-
-// ══════════════════════════════════════════════════════
-// EGRESOS
-// ══════════════════════════════════════════════════════
 // Render (plan free) apaga el backend tras ~15 min sin tráfico. El primer pedido del día lo
 // "despierta", pero eso puede tardar bastante (a veces más de un minuto) y mientras tanto el
 // servidor devuelve 502/503/504 o ni responde. Antes el fetch único se cortaba ahí y la pantalla
@@ -379,210 +424,6 @@ async function fetchConDespertar(url, estadoEl, limiteMs = 90000) {
   }
 }
 
-async function consultarEgresos(){
-  const desde=document.getElementById('flt-desde').value;
-  const hasta=document.getElementById('flt-hasta').value;
-  const backend=document.getElementById('flt-backend').value.trim().replace(/\/$/,'');
-  const estado=document.getElementById('eg-estado');
-  if(!desde){ estado.textContent='La fecha "desde" es obligatoria.'; estado.className='estado error'; return; }
-  estado.className='estado'; estado.textContent='Consultando…';
-  try{
-    const data=await fetchConDespertar(`${backend}/api/pagos?desde=${desde}&hasta=${hasta||desde}`, estado);
-    // Excluir transferencias internas entre cuentas propias
-    // Se filtra por rubro Y por concepto para no depender de la clasificación del backend
-    egBrutos=data.pagos.filter(p=>{
-      const r=(p.rubro||'').toUpperCase();
-      const c=(p.concepto||'').toUpperCase();
-      if(r.includes('MOVIMIENTO ENTRE CUENTAS')) return false;
-      if(c.includes('MOV DESDE')&&(c.includes('A CTA')||c.includes('BCO'))) return false;
-      if(p.categoria==='__INTERNO__') return false;
-      return true;
-    });
-    estado.textContent=`${data.total} pagos encontrados.`;
-    document.getElementById('stampFecha').textContent=`Actualizado: ${new Date().toLocaleString('es-AR')}`;
-    renderEgresos();
-    renderResultadoNeto();
-  }catch(err){
-    estado.className='estado error';
-    estado.textContent=`Error: ${err.message}`;
-  }
-}
-
-function filtrarEgresos(){
-  const emp=document.getElementById('flt-empresa').value;
-  return egBrutos.filter(p=>{
-    if(p.categoria==='__INTERNO__') return false; // excluir movimientos entre cuentas siempre
-    if(emp && empresaKey(p.origen,p.unidad)!==emp) return false;
-    return true;
-  });
-}
-
-function renderEgresos(){
-  const pagos=filtrarEgresos();
-  const pagos_calc=pagos.filter(p=>p.categoria!=='__INTERNO__');
-  const total=pagos_calc.reduce((a,p)=>a+(p.importe||0),0);
-  // El desglose por empresa (SIG/CEMEI/Neoform) ya lo da el filtro de Empresa de arriba — mostrarlo
-  // de nuevo acá era redundante.
-  document.getElementById('eg-summary').innerHTML=`
-    <div class="card"><div class="label">Total general</div><div class="value">${formatARS(total)}</div></div>
-    <div class="card"><div class="label">Pagos</div><div class="value">${pagos.length}</div></div>`;
-
-  // Tabla agrupada por categoría > subcategoría > detalle (expandible)
-  // Excluir movimientos internos entre cuentas
-  const pagos_vis = pagos.filter(p => p.categoria !== '__INTERNO__');
-  const arbol={};
-  pagos_vis.forEach(p=>{
-    const cat=p.categoria||'Sin clasificar';
-    const sub=p.subcategoria||'Sin subcategoría';
-    const det=p.detalle||'';
-    if(!arbol[cat]) arbol[cat]={total:0,count:0,subs:{}};
-    arbol[cat].total+=(p.importe||0); arbol[cat].count++;
-    if(!arbol[cat].subs[sub]) arbol[cat].subs[sub]={total:0,count:0,dets:{}};
-    arbol[cat].subs[sub].total+=(p.importe||0); arbol[cat].subs[sub].count++;
-    if(det){
-      if(!arbol[cat].subs[sub].dets[det]) arbol[cat].subs[sub].dets[det]={total:0,count:0};
-      arbol[cat].subs[sub].dets[det].total+=(p.importe||0);
-      arbol[cat].subs[sub].dets[det].count++;
-    }
-  });
-  const totalGeneral=pagos.reduce((a,p)=>a+(p.importe||0),0);
-  document.getElementById('eg-catN').textContent=`(${Object.keys(arbol).length} categorías)`;
-  let html='';
-  let ci=0;
-  Object.entries(arbol).sort((a,b)=>b[1].total-a[1].total).forEach(([cat,datos])=>{
-    const catId=`c${ci}`;
-    html+=`<tr class="cat-row" onclick="toggleCat('${catId}')">
-      <td><span class="arr" id="arr-${catId}">▼</span> ${esc(cat)}</td>
-      <td class="num">${datos.count}</td><td class="num">${formatARS(datos.total)}</td></tr>`;
-    let si=0;
-    Object.entries(datos.subs).sort((a,b)=>b[1].total-a[1].total).forEach(([sub,s])=>{
-      const subId=`s${ci}-${si}`;
-      const hasDet=Object.keys(s.dets).length>0;
-      const arrow=hasDet?`<span class="arr" id="arr-${subId}">▶</span>`:`<span style="display:inline-block;width:14px"></span>`;
-      html+=`<tr class="sub-row" data-cat="${catId}" ${hasDet?`onclick="toggleSub(event,'${subId}')"`:''}  style="${hasDet?'cursor:pointer':''}">
-        <td style="padding-left:24px">${arrow} ${esc(sub)}</td>
-        <td class="num" style="color:var(--muted)">${s.count}</td>
-        <td class="num" style="color:var(--muted)">${formatARS(s.total)}</td></tr>`;
-      if(hasDet){
-        Object.entries(s.dets).sort((a,b)=>b[1].total-a[1].total).forEach(([det,d])=>{
-          html+=`<tr class="det-row" data-sub="${subId}" style="display:none">
-            <td style="padding-left:44px">${esc(det)}</td>
-            <td class="num">${d.count}</td>
-            <td class="num">${formatARS(d.total)}</td></tr>`;
-        });
-      }
-      si++;
-    });
-    ci++;
-  });
-  html+=`<tr class="total-row"><td><strong>TOTAL</strong></td><td class="num">${pagos.length}</td><td class="num">${formatARS(totalGeneral)}</td></tr>`;
-  document.getElementById('eg-cat-tbody').innerHTML=html;
-
-  // Gráfico: siempre por categoría (el detalle por subcategoría ya está en la tabla expandible de arriba)
-  const COLS=['#0F6657','#B5563C','#2E5E8E','#7A5E2E','#5B3E8E','#1A6B6B','#8E6B2E','#2E8E6B'];
-  let labels,valores;
-  {
-    const catMap={};
-    pagos.forEach(p=>{ const c=p.categoria||'Sin cat'; catMap[c]=(catMap[c]||0)+(p.importe||0); });
-    const ents=Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
-    labels=ents.map(e=>e[0]); valores=ents.map(e=>e[1]);
-    document.getElementById('eg-rubroN').textContent=`(${ents.length} categorías)`;
-  }
-  const ctx=document.getElementById('eg-chart').getContext('2d');
-  if(egChart) egChart.destroy();
-  egChart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{data:valores,backgroundColor:valores.map((_,i)=>COLS[i%COLS.length]),borderRadius:2,maxBarThickness:36}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>formatARS(c.parsed.x)}}},scales:{x:{ticks:{callback:v=>formatARS(v),font:{family:'IBM Plex Mono',size:10}},grid:{color:'#EFEAE0'}},y:{ticks:{font:{family:'Inter',size:11}},grid:{display:false}}}}});
-
-  // Tabla de pagos
-  document.getElementById('eg-tablaN').textContent=`(${pagos_vis.length})`;
-  const ord=[...pagos_vis].sort((a,b)=>(b.fechaCobro||'').localeCompare(a.fechaCobro||''));
-  document.getElementById('eg-tbody').innerHTML=ord.map(p=>`<tr>
-    <td>${formatFecha(p.fechaCobro)}</td>
-    <td>${badgeEmpresa(p.origen,p.unidad)}</td>
-    <td><span class="pill">${esc(p.categoria||'—')}</span></td>
-    <td style="font-size:12.5px;color:var(--muted)">${esc(p.subcategoria||'—')}</td>
-    <td>${esc(p.proveedor)}</td>
-    <td class="num">${formatARS(p.importe)}</td>
-    <td class="small">${esc(p.concepto)}</td>
-  </tr>`).join('');
-}
-
-function exportarEgresosCSV(){
-  const pagos=filtrarEgresos().filter(p=>p.categoria!=='__INTERNO__');
-  descargarCSV(pagos,[
-    {header:'Fecha',get:p=>formatFecha(p.fechaCobro)},
-    {header:'Empresa',get:p=>p.origen||''},
-    {header:'Unidad',get:p=>p.unidad||''},
-    {header:'Categoría',get:p=>p.categoria||''},
-    {header:'Subcategoría',get:p=>p.subcategoria||''},
-    {header:'Detalle',get:p=>p.detalle||''},
-    {header:'Proveedor',get:p=>p.proveedor||''},
-    {header:'Banco',get:p=>p.banco||''},
-    {header:'Rubro',get:p=>p.rubro||''},
-    {header:'Importe',get:p=>p.importe||0,numero:true},
-    {header:'Concepto',get:p=>p.concepto||''},
-    {header:'Cobrado',get:p=>p.cobrado||''},
-    {header:'ID Pago',get:p=>p.idPago||''},
-  ],'egresos_detalle');
-}
-
-// Toggle tipo en ingresos
-function toggleResumen(rid){
-  const rows=document.querySelectorAll(`tr.res-sub-row[data-res="${rid}"]`);
-  const arr=document.getElementById(`arr-${rid}`);
-  const isOpen=arr.textContent.trim()==='▼';
-  arr.textContent=isOpen?'▶ ':'▼ ';
-  rows.forEach(r=>r.style.display=isOpen?'none':'');
-}
-function toggleCategoria(rid){
-  const rows=document.querySelectorAll(`tr.cc-sub-row[data-cc="${rid}"]`);
-  const arr=document.getElementById(`arr-${rid}`);
-  const isOpen=arr.textContent.trim()==='▼';
-  arr.textContent=isOpen?'▶ ':'▼ ';
-  rows.forEach(r=>r.style.display=isOpen?'none':'');
-}
-function toggleIngTipo(tid){
-  const rows=document.querySelectorAll(`tr.ing-det-row[data-tipo="${tid}"]`);
-  const arr=document.getElementById(`arr-${tid}`);
-  const open=arr.textContent==='▼';
-  arr.textContent=open?'▶':'▼';
-  rows.forEach(r=>r.style.display=open?'none':'');
-}
-
-// Toggle categoría (expande/colapsa subcategorías)
-function toggleCat(catId){
-  const rows=document.querySelectorAll(`tr.sub-row[data-cat="${catId}"]`);
-  const arr=document.getElementById(`arr-${catId}`);
-  const open=arr.textContent==='▼';
-  arr.textContent=open?'▶':'▼';
-  rows.forEach(row=>{
-    row.style.display=open?'none':'';
-    // Si colapsamos la cat, colapsamos también los detalles abiertos
-    if(open){
-      const subId=row.querySelector('[id^="arr-s"]')?.id?.replace('arr-','');
-      if(subId){
-        document.querySelectorAll(`tr.det-row[data-sub="${subId}"]`).forEach(d=>d.style.display='none');
-        const sa=document.getElementById(`arr-${subId}`); if(sa) sa.textContent='▶';
-      }
-    }
-  });
-}
-
-// Toggle subcategoría (expande/colapsa detalles)
-function toggleSub(e,subId){
-  e.stopPropagation();
-  const rows=document.querySelectorAll(`tr.det-row[data-sub="${subId}"]`);
-  const arr=document.getElementById(`arr-${subId}`);
-  const open=arr.textContent==='▼';
-  arr.textContent=open?'▶':'▼';
-  rows.forEach(row=>row.style.display=open?'none':'');
-}
-
-// El cambio de flt-empresa (compartido con Ingresos) se registra más abajo junto con el resto de
-// los efectos que dispara.
-
-// ══════════════════════════════════════════════════════
-// INGRESOS
-// ══════════════════════════════════════════════════════
 function parsearNumeroARFarmacia(s){
   if(s===undefined || s===null) return 0;
   const t=String(s).trim();
@@ -669,6 +510,493 @@ async function procesarFarmaciaCSV(){
   }
 }
 
+// ══════════════════════════════════════════════════════
+// CLASIFICACIÓN: OPERATIVO / NO OPERATIVO + RUBROS
+// (lógica pura, sin DOM — se puede probar suelta contra datos reales)
+// ══════════════════════════════════════════════════════
+// <<LOGICA
+// Interruptores: lo que se considera NO operativo en los casos grises. Cambiar a false lo devuelve a
+// Operativo, sin tocar nada más.
+const SW={
+  DIRECTORES_NO_OPERATIVO:true, // gastos/retiros de directores y socios (SIG > Otros Egresos > Directores)
+  COD_NO_OPERATIVO:true,        // Facturas COD 01/02 y sus comisiones (el backend ya las toma como no operativas en ingresos)
+};
+
+const normT = s => String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/\./g,'').replace(/\s+/g,' ').trim();
+const esTodoMayus = s => { const l=String(s||'').replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g,''); return l.length>0 && l===l.toUpperCase(); };
+
+// Los rubros vienen de cada API en MAYÚSCULAS ("FEDERACION FARMACEUTICA DE FSA"). Para que se lean
+// bien se pasan a Título solo al mostrar — las claves de agrupación siempre usan normT().
+const ACRONIMOS=new Set(['SAMED','ARCA','AFIP','BBVA','CEMEI','ACLISA','SOEM','NEO','REFSA','PLEX','ART','IVA','MP','OS','SIG','SRL','SA','SMG','CNP','JRB','EZVIZ','GAL','BOP','OSCEARA','OSPACA','OSPES','UTA','ROISA','MEPROA','COD','FC','AMP','IASEP','OSMATA','SPF','OSDE','FSA','SL','MKT','ML','FATFA','AFTF','CBU','DNI','CUIT']);
+const MINUSCULAS=new Set(['DE','DEL','LA','LAS','LOS','Y','E','EN','PARA','A','AL','POR','CON','SIN','O','U']);
+const ACENTOS={MEDICOS:'Médicos',MEDICO:'Médico',MERCADERIAS:'Mercaderías',MERCADERIA:'Mercadería',DROGUERIAS:'Droguerías',DROGUERIA:'Droguería',COMPUTACION:'Computación',PAPELERIA:'Papelería',LAVANDERIA:'Lavandería',OXIGENO:'Oxígeno',PRESTAMO:'Préstamo',PRESTAMOS:'Préstamos',DEVOLUCION:'Devolución',DEVOLUCIONES:'Devoluciones',COMERCIALIZACION:'Comercialización',ADMINISTRACION:'Administración',FEDERACION:'Federación',FARMACEUTICA:'Farmacéutica',CAPITACION:'Capitación',FISCALIZACION:'Fiscalización',ORDENES:'Órdenes',INFORMATICOS:'Informáticos',LIBRERIA:'Librería',ODONTOLOGIA:'Odontología',MUNICIPLIDAD:'Municipalidad',DIA:'Día',PINTURERIA:'Pinturería',FERRETERIA:'Ferretería',VIATICOS:'Viáticos',SENAS:'Señas','SEÑAS':'Señas',QUIROFANO:'Quirófano',BARCENA:'Bárcena',COMISION:'Comisión',DOLARES:'Dólares',ENFERMERIA:'Enfermería',MODULACION:'Modulación',SANCION:'Sanción',HONORARIO:'Honorario',PREFACTURAS:'Prefacturas',DIAS:'Días',RESIDUOS:'Residuos',CAMARAS:'Cámaras'};
+function bonito(s){
+  s=String(s==null?'':s);
+  if(!esTodoMayus(s)) return s;
+  return s.split(/(\s+|\/|-|\(|\)|,)/).map((t,i)=>{
+    if(!t || /^(\s+|\/|-|\(|\)|,)$/.test(t)) return t;
+    const u=t.toUpperCase();
+    if(ACENTOS[u]) return ACENTOS[u];
+    if(ACRONIMOS.has(u) || /[\d.]/.test(u) || (u.length<=2 && !MINUSCULAS.has(u))) return u;
+    if(MINUSCULAS.has(u) && i>0) return u.toLowerCase();
+    return u.charAt(0)+u.slice(1).toLowerCase();
+  }).join('');
+}
+
+// ── Ingresos ─────────────────────────────────────────
+// No operativo = movimientos que NO son venta/cobro de la actividad: los "OTROS INGRESOS" de SIG
+// (efectivo de Farmacia San Lorenzo/SAMED, Facturas COD 01/02, otros) — mismo criterio que ya usa el
+// backend (obtenerNoOperativoSIG) — y cualquier cobro cuyo cliente sea "OTROS INGRESOS".
+// OJO: los cobros de CEMEI/Neoform NO traen tipoFactura (es propio de SIG), por eso antes caían todos
+// en "No Operativo > Sin tipo". Ahora son Operativo, agrupados por rubro (ACLISA, Convenios Directos…).
+const ING_NOOP_TIPOS=['Otros Ingresos','Efectivo Fcia San Lorenzo (SAMED)','Facturas COD 01','Facturas COD 02'];
+const CAT_ING_NOOP='Depósitos y otros ingresos';
+
+function categoriaExcel(c){
+  if(['Salud Integral','UTA','Medicina Laboral','OSPES'].includes(c.tipoConcepto)) return {cat:'Convenios Directos',sub:c.tipoConcepto};
+  // Dentro de "ACLISA" se desglosa por la obra social real (AMP, IASEP, OSMATA, SPF, Swiss Medical…),
+  // extraída del concepto en el backend.
+  if((c.origenFactura||'').toLowerCase().includes('prefactura')) return {cat:'ACLISA',sub:c.obraSocial||null};
+  if(c.tipoConcepto==='Medicamentos') return {cat:'Hospital de Día',sub:null};
+  if(c.tipoConcepto==='Adicionales / Plus') return {cat:'Plus',sub:null};
+  if(c.tipoConcepto==='Seña / Descartable') return {cat:'Seña/Descartable',sub:null};
+  // Solo es "Particular" cuando el origen es Particulares o no viene; cualquier otro origen explícito
+  // (ej. "Manual") queda separado y visible en vez de mezclarse.
+  const og=(c.origenFactura||'').toLowerCase();
+  if(og && !['particulares','particular'].includes(og)) return {cat:`Origen: ${c.origenFactura}`,sub:null};
+  return {cat:'Particular',sub:null};
+}
+
+function clasificarIngreso(c){
+  const key=empresaKey(c.empresa,c.sucursal);
+  const tf=c.tipoFactura||'';
+  if(ING_NOOP_TIPOS.includes(tf) || normT(c.cliente)==='OTROS INGRESOS'){
+    return {tipo:'NOOP',cat:CAT_ING_NOOP,sub:ING_NOOP_TIPOS.includes(tf)?tf:'Otros ingresos',det:null,o:1};
+  }
+  // Farmacia (ventas cargadas por CSV, y la rendición de cajas de la sucursal Farmacia de CEMEI):
+  // misma jerarquía que el Excel de Farmacia — Cobranzas por medio de pago > En efectivo / Bancarios y MP.
+  if(tf==='Farmacia' || key==='FARMACIA'){
+    const efectivo=normT(c.formaPago)==='EFECTIVO';
+    return {tipo:'OP',cat:'Cobranzas por medio de pago',sub:efectivo?'En efectivo':'Bancarios y MP',det:c.formaPago||null,o:50};
+  }
+  // Salud Integral: tipo de factura (Capitación, Pagos de cuotas, Venta de órdenes, Fiscalización)
+  if(tf) return {tipo:'OP',cat:tf==='Venta de ordenes'?'Venta de órdenes':tf,sub:c.subTipo||null,det:null,o:50};
+  // CEMEI / Neoform / Medicina Laboral
+  const {cat,sub}=categoriaExcel(c);
+  let s=sub;
+  if(!s && !['ACLISA','Convenios Directos'].includes(cat)) s=(key==='NEO'?'Neoform':(c.sucursal||null));
+  return {tipo:'OP',cat,sub:s,det:null,o:50};
+}
+
+// ── Egresos ──────────────────────────────────────────
+const NOOP_CAT={
+  GRUPO:['Movimientos con empresas del grupo',1],
+  PREST:['Préstamos',2],
+  DIR:['Directores y socios',3],
+  OTROS:['Otros movimientos financieros',4],
+};
+// Devuelve {cat,sub,det,o} si el pago es NO operativo (movimiento financiero, no costo de la actividad).
+function noopEgreso(p,key){
+  const r=normT(p.rubro), c0=normT(p.categoria), s0=normT(p.subcategoria), con=normT(p.concepto);
+  const mk=(g,sub,det)=>({cat:NOOP_CAT[g][0],o:NOOP_CAT[g][1],sub:sub||null,det:det||null});
+  // El rubro "EFECTIVO PARA OTRAS EMPRESAS" de Farmacia: en el Excel se separa en Efectivo para Salud /
+  // Efectivo para Neo — acá se distingue por el concepto ("PRESTAMO A NEOFORM", "PRESTAMO A SALUD INTEGRAL").
+  if(r.includes('EFECTIVO PARA OTRAS EMPRESAS')){
+    const sub=con.includes('NEOFORM')?'Efectivo para Neo':con.includes('SALUD')?'Efectivo para Salud':'Efectivo para otras empresas';
+    return mk('GRUPO',sub,null);
+  }
+  if(r.startsWith('DEVOLUCION PRESTAMO')) return mk('GRUPO','Devolución de préstamos',p.rubro);
+  if(key==='SIG' && r.includes('NEOFORM')) return mk('GRUPO','Neoform',p.rubro);
+  if(r==='SUELDO GIMENA PALAVECINO' && SW.DIRECTORES_NO_OPERATIVO) return mk('DIR','Sueldo Gimena Palavecino',null);
+  if(c0==='OTROS EGRESOS'){ // categoría "Otros Egresos" de SIG: ya es, por definición, lo que no es operación
+    if(s0==='DIRECTORES' && SW.DIRECTORES_NO_OPERATIVO) return mk('DIR',p.rubro||'Directores',p.detalle||null);
+    if(s0==='OTRAS EMPRESAS') return mk('GRUPO',p.rubro||'Otras empresas',p.detalle||null);
+    if(r.includes('PRESTAMO')) return mk('PREST',p.rubro,null);
+    return mk('OTROS',p.rubro||p.subcategoria||'Otros',p.detalle||null);
+  }
+  if(r.includes('PRESTAMO') && !/BBVA|BANCO|HIPOTEC/.test(r)) return mk('PREST',p.rubro,null);
+  if(r.includes('COMPRA DE DOLARES')) return mk('OTROS','Compra de dólares',null);
+  if(SW.COD_NO_OPERATIVO && (r.includes('FACTURAS COD')||s0.includes('FACTURAS COD'))) return mk('OTROS','Facturas COD 02',p.proveedor||null);
+  return null;
+}
+
+// Nombres de categoría: cada API los escribe distinto ("Gastos Administrativos" / "GASTOS ADMINISTRATIVOS" /
+// "Gastos de Comercialización y Marketing"). Se unifican para que sumen en una sola fila por rubro.
+const CAT_CANON={
+  'GASTOS ADMINISTRATIVOS':['Gastos Administrativos',1],
+  'GASTOS COMERCIALES':['Gastos Comerciales',2],
+  'GASTOS DE COMERCIALIZACION Y MARKETING':['Gastos Comerciales',2],
+  'GASTOS PRESTACIONALES':['Gastos Prestacionales',3],
+  'COSTOS DE MERCADERIAS':['Costos de Mercaderías',4],
+  'GASTOS MEDICOS Y DE INSUMOS':['Gastos Médicos y de Insumos',5],
+  'HOSPITAL DE DIA':['Hospital de Día',6],
+  'HONORARIOS':['Honorarios',7],
+  'SIN CLASIFICAR':['Sin clasificar',99],
+};
+function canonCat(c){ const x=CAT_CANON[normT(c)]; return x?{cat:x[0],o:x[1]}:{cat:c||'Sin clasificar',o:50}; }
+
+// Farmacia (pagos de la unidad "Farmacia", que llegan por la caja Convenio Externo de CEMEI): una parte
+// llega "Sin clasificar". Se mapea por rubro a la jerarquía del Excel de Farmacia (Gastos Administrativos /
+// Gastos Comerciales / Costos de Mercaderías > Droguerías).
+const GA='Gastos Administrativos', GC='Gastos Comerciales', CM='Costos de Mercaderías';
+const FARM_RAW={
+  'SUELDOS SAMED':[GA,'Gastos del Personal','SUELDOS SAMED'],
+  'SUELDOS DE SAMED':[GA,'Gastos del Personal','SUELDOS SAMED'],
+  'LIQUIDACIONES SAMED':[GA,'Gastos del Personal','LIQUIDACIONES SAMED'],
+  'SINDICATOS':[GA,'Gastos del Personal','SINDICATOS'],
+  'FATFA':[GA,'Gastos del Personal','SINDICATOS (FATFA)'],
+  'AFTF':[GA,'Gastos del Personal','SINDICATOS (AFTF)'],
+  'GAL BOP':[GA,'Sistemas','GAL BOP - PLEX'],
+  'GAL BOP - PLEX':[GA,'Sistemas','GAL BOP - PLEX'],
+  'ALMACENAMIENTO CAMARAS EZVIZ LIFE':[GA,'Sistemas','ALMACENAMIENTO CAMARAS EZVIZ LIFE'],
+  'ARCA 931 SAMED':[GA,'Impuestos','AFIP 931'],
+  'AFIP 931':[GA,'Impuestos','AFIP 931'],
+  'ARCA- ANTICIPOS SAMED':[GA,'Impuestos','AFIP ANTICIPOS'],
+  'ARCA ANTICIPOS SAMED':[GA,'Impuestos','AFIP ANTICIPOS'],
+  'AFIP ANTICIPOS':[GA,'Impuestos','AFIP ANTICIPOS'],
+  'ARCA IVA SAMED':[GA,'Impuestos','AFIP IVA'],
+  'AFIP IVA':[GA,'Impuestos','AFIP IVA'],
+  'MUNICIPLIDAD SAMED':[GA,'Impuestos','MUNICIPALIDAD'],
+  'MUNICIPALIDAD':[GA,'Impuestos','MUNICIPALIDAD'],
+  'IMPUESTOS':[GA,'Impuestos','OTROS'],
+  'PAGO PRESTAMO BBVA':[GA,'Gastos Bancarios','PAGO PRESTAMO BBVA'],
+  'GASTOS BANCARIOS':[GA,'Gastos Bancarios','COMISIONES BANCARIAS'],
+  'COMISIONES BANCARIAS':[GA,'Gastos Bancarios','COMISIONES BANCARIAS'],
+  'COMISIONES MP SAMED':[GA,'Gastos Bancarios','COMISIONES MP'],
+  'COMISIONES MP':[GA,'Gastos Bancarios','COMISIONES MP'],
+  'ALQUILER':[GA,'Servicios','ALQUILER'],
+  'REFSA SAMED':[GA,'Servicios','REFSA'],
+  'REFSA':[GA,'Servicios','REFSA'],
+  'MEGACABLE SAMED':[GA,'Servicios','MEGACABLE'],
+  'MEGACABLE':[GA,'Servicios','MEGACABLE'],
+  'SANCOR SEGUROS':[GA,'Servicios','SANCOR SEGUROS'],
+  'MEJOR AGUA':[GA,'Servicios','MEJOR AGUA'],
+  'AGUAS DE FORMOSA SAMED':[GA,'Servicios','AGUAS DE FORMOSA'],
+  'RESIDUOS PELIGROSOS - RECOLECTORA':[GA,'Servicios','RESIDUOS PELIGROSOS - RECOLECTORA'],
+  'SERVICIOS':[GA,'Servicios','OTROS SERVICIOS'],
+  'GASTOS DE MUDANZA':[GA,'Gastos Generales de Funcionamiento','GASTOS DE MUDANZA'],
+  'MOTOMANDADO SAMED':[GA,'Gastos Generales de Funcionamiento','MOTOMANDADOS'],
+  'MOTOMANDADOS':[GA,'Gastos Generales de Funcionamiento','MOTOMANDADOS'],
+  'GASTOS DE MANTENIMIENTO SAMED':[GA,'Gastos Generales de Funcionamiento','PINTURERIA FERRETERIA Y MANTENIMIENTO'],
+  'PRODUCTOS DE LIMPIEZA SAMED':[GA,'Gastos Generales de Funcionamiento','LIMPIEZA Y MERCADERIA'],
+  'BOLSAS PARA FARMACIA':[GA,'Gastos Generales de Funcionamiento','LIMPIEZA Y MERCADERIA'],
+  'LIBRERIA Y COMPUTACION- SAMED':[GA,'Gastos Generales de Funcionamiento','PAPELERIA Y COMPUTACION'],
+  'OTROS VARIOS SAMED':[GA,'Otros Gastos','VARIOS SAMED'],
+  'GASTOS URIBURU':[GA,'Otros Gastos','GASTOS URIBURU'],
+  'LUCERO OMAR':[GA,'Otros Gastos','HONORARIOS - OMAR LUCERO'],
+  'HONORARIOS TERCEROS - OMAR LUCERO':[GA,'Otros Gastos','HONORARIOS - OMAR LUCERO'],
+  'IMPRENTA Y MKT SAMED':[GC,'GASTOS DE IMPRENTA Y MKT',null],
+  'PROMOCIONES Y EVENTOS':[GC,'PROMOCIONES Y EVENTOS',null],
+  'DESCUENTOS COMERCIALES':[GC,'DESCUENTOS COMERCIALES',null],
+  'AMERICANA MONROE':[CM,'DROGUERIAS','AMERICANA MONROE'],
+  'DROGUERIA DEL SUD':[CM,'DROGUERIAS','DEL SUD'],
+  'DEL SUD':[CM,'DROGUERIAS','DEL SUD'],
+  'GENERIA':[CM,'DROGUERIAS','GENERIA'],
+  'GLOBAL MED':[CM,'DROGUERIAS','GLOBAL MED'],
+  'AVENIDA':[CM,'DROGUERIAS','AVENIDA'],
+  'COFARAL':[CM,'DROGUERIAS','COFARAL'],
+  'JRB DISTRIBUIDORA ARCOR':[CM,'DROGUERIAS','JRB DISTRIBUIDORA ARCOR'],
+  'SALTA REFRESCOS':[CM,'DROGUERIAS','SALTA REFRESCOS'],
+  'BIOFAR SA':[CM,'DROGUERIAS','OTROS (BIOFAR SA)'],
+};
+const FARM=Object.fromEntries(Object.entries(FARM_RAW).map(([k,v])=>[normT(k),v]));
+
+function clasificarEgreso(p){
+  const key=empresaKey(p.origen,p.unidad);
+  const n=noopEgreso(p,key);
+  if(n) return {tipo:'NOOP',cat:n.cat,sub:n.sub,det:n.det,o:n.o};
+  if(key==='FARMACIA'){
+    const f=FARM[normT(p.rubro)];
+    if(f){ const cc=canonCat(f[0]); return {tipo:'OP',cat:cc.cat,sub:f[1],det:f[2]||null,o:cc.o}; }
+    if(normT(p.categoria)==='SIN CLASIFICAR') return {tipo:'OP',cat:GA,sub:'Otros Gastos',det:p.rubro||null,o:1};
+  }
+  const cc=canonCat(p.categoria);
+  return {tipo:'OP',cat:cc.cat,sub:p.subcategoria||null,det:p.detalle||null,o:cc.o};
+}
+
+// ── Árbol Rubro > Subrubro > Detalle ─────────────────
+function addNodo(mapa,label,monto,emp,orden){
+  const key=normT(label);
+  let n=mapa.get(key);
+  if(!n){ n={label,total:0,count:0,emps:new Set(),kids:new Map(),o:orden==null?50:orden}; mapa.set(key,n); }
+  else if(esTodoMayus(n.label) && !esTodoMayus(label)) n.label=label; // prefiere la variante con minúsculas
+  n.total+=monto; n.count++; if(emp) n.emps.add(emp);
+  return n;
+}
+function armarArbol(items,getMonto,getEmp){
+  // items: [{k:{cat,sub,det,o}, ...}]
+  const raiz={total:0,count:0,kids:new Map()};
+  items.forEach(it=>{
+    const m=getMonto(it)||0, e=getEmp(it), k=it.k;
+    raiz.total+=m; raiz.count++;
+    const n1=addNodo(raiz.kids,k.cat,m,e,k.o);
+    const n2=addNodo(n1.kids,k.sub||'Sin detalle',m,e,k.sub?undefined:98);
+    if(k.det) addNodo(n2.kids,k.det,m,e);
+  });
+  return raiz;
+}
+// Hijos ordenados de un nodo. Si los hijos no suman el total del nodo (algunos movimientos no tienen
+// detalle) se agrega una fila "Sin detalle" con la diferencia, así cada nivel siempre cuadra.
+function hijosDe(n){
+  const arr=[...n.kids.values()];
+  if(!arr.length) return [];
+  if(arr.length===1 && normT(arr[0].label)==='SIN DETALLE') return [];
+  const suma=arr.reduce((a,x)=>a+x.total,0);
+  if(Math.abs(suma-n.total)>0.5 && !arr.some(x=>normT(x.label)==='SIN DETALLE')){
+    arr.push({label:'Sin detalle',total:n.total-suma,count:n.count-arr.reduce((a,x)=>a+x.count,0),emps:new Set(),kids:new Map(),o:98});
+  }
+  return arr.sort((a,b)=>(a.o-b.o)||(b.total-a.total));
+}
+// LOGICA>>
+
+// ══════════════════════════════════════════════════════
+// CONSULTAS
+// ══════════════════════════════════════════════════════
+// Ingresos y egresos son dos endpoints distintos del backend; un solo botón "Consultar" dispara los dos
+// y el reporte se arma una sola vez, cuando terminaron ambos.
+async function consultarTodo(){
+  ingOk=false; egOk=false; enLote=true;
+  try{ await Promise.all([consultarEgresos(), consultarIngresos()]); }
+  finally{ enLote=false; }
+  renderReporte();
+}
+
+async function consultarEgresos(){
+  const desde=document.getElementById('flt-desde').value;
+  const hasta=document.getElementById('flt-hasta').value;
+  const backend=document.getElementById('flt-backend').value.trim().replace(/\/$/,'');
+  const estado=document.getElementById('eg-estado');
+  if(!desde){ estado.textContent='La fecha "desde" es obligatoria.'; estado.className='estado error'; return; }
+  estado.className='estado'; estado.textContent='Consultando egresos…';
+  try{
+    const data=await fetchConDespertar(`${backend}/api/pagos?desde=${desde}&hasta=${hasta||desde}`, estado);
+    // Se excluyen las transferencias internas entre cuentas propias (por rubro Y por concepto, para no
+    // depender de la clasificación del backend).
+    egBrutos=data.pagos.filter(p=>{
+      const r=(p.rubro||'').toUpperCase();
+      const c=(p.concepto||'').toUpperCase();
+      if(r.includes('MOVIMIENTO ENTRE CUENTAS')) return false;
+      if(c.includes('MOV DESDE')&&(c.includes('A CTA')||c.includes('BCO'))) return false;
+      if(p.categoria==='__INTERNO__') return false;
+      return true;
+    });
+    egClas=egBrutos.map(p=>({p,k:clasificarEgreso(p),e:empresaKey(p.origen,p.unidad)}));
+    egOk=true;
+    estado.textContent=`${data.total} pagos encontrados.`;
+    document.getElementById('stampFecha').textContent=`Actualizado: ${new Date().toLocaleString('es-AR')}`;
+    if(!enLote) renderReporte();
+  }catch(err){
+    egOk=false;
+    estado.className='estado error';
+    estado.textContent=`Error en egresos: ${err.message}`;
+  }
+}
+
+async function consultarIngresos(){
+  const desde=document.getElementById('flt-desde').value;
+  const hasta=document.getElementById('flt-hasta').value;
+  const backend=document.getElementById('flt-backend').value.trim().replace(/\/$/,'');
+  const estado=document.getElementById('ing-estado');
+  if(!desde){ estado.textContent='La fecha "desde" es obligatoria.'; estado.className='estado error'; return; }
+  estado.className='estado'; estado.textContent='Consultando ingresos…';
+  try{
+    const data=await fetchConDespertar(`${backend}/api/cobros?desde=${desde}&hasta=${hasta||desde}`, estado);
+    ingBrutos=data.cobros;
+    ingClas=ingBrutos.map(c=>({c,k:clasificarIngreso(c),e:empresaKey(c.empresa,c.sucursal)}));
+    ingFarmaciaDeuda=data.farmaciaDeuda||{cobertura:0,ctaCtePendiente:0,meses:[]};
+    ingOk=true;
+    estado.textContent=`${data.total} cobros — Total: ${formatARS(data.totalCobrado)}`;
+    document.getElementById('stampFecha').textContent=`Actualizado: ${new Date().toLocaleString('es-AR')}`;
+    if(!enLote) renderReporte();
+  }catch(err){
+    ingOk=false;
+    estado.className='estado error';
+    estado.textContent=`Error en ingresos: ${err.message}`;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// REPORTE: Operativo · No operativo · Resultado total
+// ══════════════════════════════════════════════════════
+const pctTxt=v=>v.toLocaleString('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
+const signoCls=v=>v>=0?'pos-txt':'neg-txt';
+const sumaPor=(arr,f)=>arr.reduce((a,x)=>a+(f(x)||0),0);
+function etiquetaEmp(k){ return k==='CEMEI'?'CEMEI':k==='LABORAL'?'Laboral':k==='NEO'?'NEO':k==='FARMACIA'?'Farmacia':'SIG'; }
+const badgeKey=k=>`<span class="badge ${k.toLowerCase()}">${etiquetaEmp(k)}</span>`;
+const rubroTxt=k=>esc(bonito(k.cat))+(k.sub?` <span style="color:var(--muted)">›</span> ${esc(bonito(k.sub))}`:'');
+
+// Filas del árbol. Nivel 1 = rubro, 2 = subrubro, 3 = detalle. Los niveles 1 y 2 se ven abiertos de
+// entrada; el 3 se despliega con un clic en el subrubro.
+function filaArbol(n,lvl,id,parent,pref,totalRef,emp){
+  const kids=hijosDe(n);
+  const tiene=kids.length>0;
+  const pct=totalRef?n.total/totalRef*100:0;
+  const chips=(lvl===1 && !emp && n.emps.size)
+    ? `<span class="chips">${[...n.emps].sort().map(badgeKey).join('')}</span>` : '';
+  const barra=lvl===1?`<div class="bar"><i style="width:${Math.min(100,Math.max(0,pct)).toFixed(1)}%"></i></div>`:'';
+  return `<tr class="l${lvl}${tiene?' has-kids':''}${(lvl===1&&tiene)?' open':''}" data-id="${id}" data-parent="${parent}" data-t="${pref}" data-l="${lvl}"${lvl<=2?'':' style="display:none"'}${tiene?` onclick="toggleNodo('${id}')"`:''}>
+    <td><div class="lbl"><span class="chev${tiene?'':' nokids'}"></span><span>${esc(bonito(n.label))}</span>${chips}</div></td>
+    <td class="num c-n">${n.count}</td>
+    <td class="num">${formatARS(n.total)}</td>
+    <td class="num"><div class="pc"><span>${pctTxt(pct)}</span>${barra}</div></td>
+  </tr>`;
+}
+
+function bloqueArbol(o){
+  const emp=document.getElementById('flt-empresa').value;
+  const {pref,clase,titulo,raiz,totalLbl,unidad}=o;
+  let filas='';
+  hijosDe(raiz).forEach((n1,i)=>{
+    const id1=`${pref}-${i}`;
+    filas+=filaArbol(n1,1,id1,'',pref,raiz.total,emp);
+    hijosDe(n1).forEach((n2,j)=>{
+      const id2=`${id1}-${j}`;
+      filas+=filaArbol(n2,2,id2,id1,pref,raiz.total,emp);
+      hijosDe(n2).forEach((n3,k)=>{ filas+=filaArbol(n3,3,`${id2}-${k}`,id2,pref,raiz.total,emp); });
+    });
+  });
+  // Aviso si hay plata "Sin clasificar": es lo que todavía no tiene rubro asignado en el origen.
+  let aviso='';
+  const sc=[...raiz.kids.values()].find(n=>normT(n.label)==='SIN CLASIFICAR');
+  if(sc && raiz.total) aviso=` · <span class="warn">${formatARS(sc.total)} sin clasificar (${pctTxt(sc.total/raiz.total*100)})</span>`;
+  const cuerpo=raiz.count
+    ? `<table class="rt"><thead><tr><th>Rubro</th><th class="num c-n">Mov.</th><th class="num c-i">Importe</th><th class="num c-p">% total</th></tr></thead>
+        <tbody>${filas}
+          <tr class="tot"><td>${totalLbl}</td><td class="num c-n">${raiz.count}</td><td class="num">${formatARS(raiz.total)}</td><td></td></tr>
+        </tbody></table>`
+    : `<div class="vacio-blk">Sin movimientos en este período.</div>`;
+  return `<div class="blk ${clase}">
+    <div class="blk-h">
+      <div><div class="blk-t">${titulo}</div><div class="blk-s">${raiz.count} ${unidad} · agrupado por rubro${aviso}</div></div>
+      <div class="blk-r">
+        ${raiz.count?`<div class="blk-btns"><button class="btn-xs" onclick="toggleTodo('${pref}',true)">Expandir todo</button><button class="btn-xs" onclick="toggleTodo('${pref}',false)">Contraer</button></div>`:''}
+        <div class="blk-total">${formatARS(raiz.total)}</div>
+      </div>
+    </div>
+    ${cuerpo}
+  </div>`;
+}
+
+function toggleNodo(id){
+  const tr=document.querySelector(`tr[data-id="${id}"]`); if(!tr) return;
+  const abre=!tr.classList.contains('open');
+  tr.classList.toggle('open',abre);
+  document.querySelectorAll(`tr[data-parent="${id}"]`).forEach(h=>{ h.style.display=abre?'':'none'; if(!abre) ocultarRama(h); });
+}
+function ocultarRama(tr){
+  tr.classList.remove('open');
+  document.querySelectorAll(`tr[data-parent="${tr.dataset.id}"]`).forEach(h=>{ h.style.display='none'; ocultarRama(h); });
+}
+function toggleTodo(pref,abrir){
+  document.querySelectorAll(`tr[data-t="${pref}"]`).forEach(tr=>{
+    if(tr.classList.contains('has-kids')) tr.classList.toggle('open',abrir);
+    tr.style.display=(tr.dataset.l==='1'||abrir)?'':'none';
+  });
+}
+
+const banda=(cls,t,s)=>`<div class="band ${cls}"><div><div class="band-t">${t}</div><div class="band-s">${s}</div></div></div>`;
+const franja=(t,s,v)=>`<div class="res ${v>=0?'pos':'neg'}"><div><div class="res-t">${t}</div><div class="res-s">${s}</div></div><div class="res-v">${formatARS(v)}</div></div>`;
+
+function renderReporte(){
+  const rep=document.getElementById('reporte'), vac=document.getElementById('vacio');
+  if(!ingOk && !egOk){ rep.style.display='none'; vac.style.display=''; return; }
+  vac.style.display='none'; rep.style.display='';
+  const emp=document.getElementById('flt-empresa').value;
+  const ing=ingClas.filter(x=>!emp||x.e===emp);
+  const egr=egClas.filter(x=>!emp||x.e===emp);
+  const ingOp=ing.filter(x=>x.k.tipo==='OP'),   ingNo=ing.filter(x=>x.k.tipo==='NOOP');
+  const egOp =egr.filter(x=>x.k.tipo==='OP'),   egNo =egr.filter(x=>x.k.tipo==='NOOP');
+  const mI=x=>x.c.monto, mE=x=>x.p.importe, eK=x=>x.e;
+  const aIngOp=armarArbol(ingOp,mI,eK), aEgOp=armarArbol(egOp,mE,eK);
+  const aIngNo=armarArbol(ingNo,mI,eK), aEgNo=armarArbol(egNo,mE,eK);
+  const tIO=aIngOp.total, tEO=aEgOp.total, tIN=aIngNo.total, tEN=aEgNo.total;
+  const rOp=tIO-tEO, rNo=tIN-tEN, rTot=rOp+rNo;
+  const nombreEmp=emp?document.querySelector(`#flt-empresa option[value="${emp}"]`).textContent:'Todas las empresas';
+  const periodo=`${formatFecha(document.getElementById('flt-desde').value)} al ${formatFecha(document.getElementById('flt-hasta').value)}`;
+
+  // Si una de las dos consultas falló, el resultado sería engañoso: se avisa arriba del todo.
+  const faltan=[!ingOk&&'ingresos',!egOk&&'egresos'].filter(Boolean);
+  document.getElementById('aviso').innerHTML=faltan.length
+    ? `<div class="aviso">No se pudieron cargar los ${faltan.join(' ni los ')}: el resultado de abajo está incompleto. Volvé a tocar Consultar.</div>` : '';
+
+  // ── Resumen ──
+  const kRow=(l,v,cls)=>`<div class="kpi-row"><span>${l}</span><b class="${cls||''}">${formatARS(v)}</b></div>`;
+  const kBig=(l,v)=>`<div class="kpi-row big"><span>${l}</span><b class="${signoCls(v)}">${formatARS(v)}</b></div>`;
+  document.getElementById('kpis').innerHTML=`
+    <div class="kpi">
+      <div class="kpi-t">Operativo</div>
+      ${kRow('Ingresos',tIO,'pos-txt')}${kRow('Egresos',tEO,'neg-txt')}${kBig('Resultado operativo',rOp)}
+    </div>
+    <div class="kpi noop">
+      <div class="kpi-t">No operativo</div>
+      ${kRow('Ingresos',tIN,'pos-txt')}${kRow('Egresos',tEN,'neg-txt')}${kBig('Resultado no operativo',rNo)}
+    </div>
+    <div class="kpi total">
+      <div class="kpi-t">Resultado total · ${esc(nombreEmp)}</div>
+      ${kRow('Resultado operativo',rOp,signoCls(rOp))}${kRow('Resultado no operativo',rNo,signoCls(rNo))}${kBig('Resultado total',rTot)}
+    </div>`;
+
+  // ── Operativo ──
+  document.getElementById('sec-op').innerHTML=
+    banda('op','Operativo','Lo que genera y gasta la actividad · '+esc(nombreEmp)+' · '+periodo)+
+    bloqueArbol({pref:'oi',clase:'ing',titulo:'Ingresos operativos',raiz:aIngOp,totalLbl:'Total ingresos operativos',unidad:'cobros'})+
+    bloqueArbol({pref:'oe',clase:'egr',titulo:'Egresos operativos',raiz:aEgOp,totalLbl:'Total egresos operativos',unidad:'pagos'})+
+    franja('Resultado operativo','Ingresos operativos menos egresos operativos',rOp);
+
+  // ── No operativo ──
+  const notas=[
+    '<li><b>Ingresos:</b> efectivo de Farmacia San Lorenzo (SAMED), Facturas COD 01 y 02 y otros ingresos que no son cobranza de la actividad.</li>',
+    '<li><b>Egresos – grupo:</b> efectivo y préstamos a otras empresas (Salud Integral, Neoform), devoluciones de préstamos y pagos de SIG a Neoform.</li>',
+    '<li><b>Egresos – préstamos y otros:</b> préstamos recibidos o devueltos, compra de dólares'+(SW.COD_NO_OPERATIVO?', Facturas COD':'')+'.</li>',
+    SW.DIRECTORES_NO_OPERATIVO?'<li><b>Egresos – directores y socios:</b> retiros, gastos de directores y el sueldo de Gimena Palavecino.</li>':'',
+  ].join('');
+  document.getElementById('sec-noop').innerHTML=
+    banda('noop','No operativo','Movimientos financieros: no son ni venta ni costo de la actividad · '+esc(nombreEmp)+' · '+periodo)+
+    bloqueArbol({pref:'ni',clase:'noop',titulo:'Depósitos y otros ingresos',raiz:aIngNo,totalLbl:'Total ingresos no operativos',unidad:'cobros'})+
+    bloqueArbol({pref:'ne',clase:'noop',titulo:'Egresos no operativos',raiz:aEgNo,totalLbl:'Total egresos no operativos',unidad:'pagos'})+
+    franja('Resultado no operativo','Ingresos no operativos menos egresos no operativos',rNo)+
+    `<details class="nota"><summary>¿Qué se considera no operativo?</summary><ul>${notas}</ul></details>`;
+
+  // ── Resultado total ──
+  document.getElementById('sec-total').innerHTML=
+    banda('tot','Resultado total','Resultado operativo + resultado no operativo')+
+    `<div class="eq">
+      <div class="eq-box"><small>Resultado operativo</small><b class="${signoCls(rOp)}">${formatARS(rOp)}</b></div>
+      <div class="eq-op">+</div>
+      <div class="eq-box"><small>Resultado no operativo</small><b class="${signoCls(rNo)}">${formatARS(rNo)}</b></div>
+      <div class="eq-op">=</div>
+      <div class="eq-box tot"><small>Resultado total</small><b class="${signoCls(rTot)}">${formatARS(rTot)}</b></div>
+    </div>`;
+
+  dibujarGraficos(aIngOp,aEgOp);
+  renderDetalle(ing,egr);
+}
+
+// ── Gráficos: rubros operativos de mayor a menor (top 10 + resto) ──
+const abrevMonto=v=>{ const a=Math.abs(v); return (v<0?'-':'')+'$'+(a>=1e6?(a/1e6).toLocaleString('es-AR',{maximumFractionDigits:1})+' M':a>=1e3?Math.round(a/1e3).toLocaleString('es-AR')+' mil':Math.round(a)); };
+function graficoBarras(canvasId,raiz,color,prev){
+  if(prev) prev.destroy();
+  const nodos=hijosDe(raiz).slice().sort((a,b)=>b.total-a.total);
+  const top=nodos.slice(0,10);
+  const resto=nodos.slice(10).reduce((a,n)=>a+n.total,0);
+  const labels=top.map(n=>{ const t=bonito(n.label); return t.length>34?t.slice(0,33)+'…':t; });
+  const valores=top.map(n=>n.total);
+  if(resto>0){ labels.push('Otros rubros'); valores.push(resto); }
+  return new Chart(document.getElementById(canvasId).getContext('2d'),{
+    type:'bar',
+    data:{labels,datasets:[{data:valores,backgroundColor:color,borderRadius:4,maxBarThickness:26}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>formatARS(c.parsed.x)}}},
+      scales:{x:{ticks:{callback:abrevMonto,font:{family:'Inter',size:11}},grid:{color:'#E6EBF3'}},
+              y:{ticks:{font:{family:'Inter',size:12,weight:'600'},color:'#132033'},grid:{display:false}}}}});
+}
+function dibujarGraficos(aIngOp,aEgOp){
+  if(typeof Chart==='undefined') return; // sin conexión a la librería de gráficos: el resto del reporte sigue andando
+  ingChart=graficoBarras('ing-chart',aIngOp,'#0B7F55',ingChart);
+  egChart =graficoBarras('eg-chart', aEgOp, '#C2362D',egChart);
+}
+
+// ── Detalle: Farmacia, forma de pago y listados ──
 function renderFarmaciaPanel(cobros){
   const panel=document.getElementById('farmacia-panel');
   const farm=cobros.filter(c=>empresaKey(c.empresa,c.sucursal)==='FARMACIA');
@@ -678,327 +1006,117 @@ function renderFarmaciaPanel(cobros){
   const porFP={};
   farm.forEach(c=>{ porFP[c.formaPago]=(porFP[c.formaPago]||0)+(c.monto||0); });
   const total=farm.reduce((a,c)=>a+(c.monto||0),0);
-  const celdas=ORDEN_FP.map(fp=>`
-    <div>
-      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:600;margin-bottom:6px;">${ETIQUETAS_FP[fp]}</div>
-      <div style="font-family:var(--mono);font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;">${formatARS(porFP[fp]||0)}</div>
-    </div>`).join('');
+  const otras=total-ORDEN_FP.reduce((a,fp)=>a+(porFP[fp]||0),0);
+  const celda=(l,v,fuerte)=>`<div><div class="fp-l">${l}</div><div class="fp-v"${fuerte?' style="color:var(--farm);font-weight:800"':''}>${formatARS(v)}</div></div>`;
+  const celdas=ORDEN_FP.map(fp=>celda(ETIQUETAS_FP[fp],porFP[fp]||0)).join('')+(Math.abs(otras)>0.5?celda('Otras formas',otras):'');
   const nota=ingFarmaciaDeuda.meses && ingFarmaciaDeuda.meses.length
-    ? `Incluye ventas del mes cobradas al momento y cobranzas de Cta. Cte. vieja (RC). No incluye Cobertura (${formatARS(ingFarmaciaDeuda.cobertura)}) ni Cta. Cte. pendiente de este mes (${formatARS(ingFarmaciaDeuda.ctaCtePendiente)}): esas quedan como Deuda hasta que se cobren.`
+    ? `<div style="font-size:12.5px;color:var(--muted);margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">Incluye ventas del mes cobradas al momento y cobranzas de Cta. Cte. vieja (RC). No incluye Cobertura (${formatARS(ingFarmaciaDeuda.cobertura)}) ni Cta. Cte. pendiente de este mes (${formatARS(ingFarmaciaDeuda.ctaCtePendiente)}): esas quedan como deuda hasta que se cobren.</div>`
     : '';
-  panel.innerHTML=`
-    <section class="block">
-      <div class="block-title">Farmacia — Cobrado del período, por forma de pago</div>
-      <div style="background:#fff;border:1px solid var(--paper-line);border-radius:8px;padding:18px 20px;">
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:18px;">
-          ${celdas}
-          <div>
-            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:600;margin-bottom:6px;">Cobrado total (caja)</div>
-            <div style="font-family:var(--mono);font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;color:#7A5E2E;">${formatARS(total)}</div>
-          </div>
-        </div>
-        ${nota?`<div style="font-size:11.5px;color:var(--muted);margin-top:14px;padding-top:12px;border-top:1px solid var(--paper-line);">${nota}</div>`:''}
-      </div>
-    </section>`;
+  panel.innerHTML=`<div class="block-title">Farmacia — cobrado del período, por forma de pago</div>
+    <div class="fp-card"><div class="fp-grid">${celdas}${celda('Cobrado total (caja)',total,true)}</div>${nota}</div>`;
 }
 
-async function consultarIngresos(){
-  const desde=document.getElementById('flt-desde').value;
-  const hasta=document.getElementById('flt-hasta').value;
-  const backend=document.getElementById('flt-backend').value.trim().replace(/\/$/,'');
-  const estado=document.getElementById('ing-estado');
-  if(!desde){ estado.textContent='La fecha "desde" es obligatoria.'; estado.className='estado error'; return; }
-  estado.className='estado'; estado.textContent='Consultando…';
-  try{
-    const data=await fetchConDespertar(`${backend}/api/cobros?desde=${desde}&hasta=${hasta||desde}`, estado);
-    ingBrutos=data.cobros;
-    ingFarmaciaDeuda=data.farmaciaDeuda||{cobertura:0,ctaCtePendiente:0,meses:[]};
-    estado.textContent=`${data.total} cobros — Total: ${formatARS(data.totalCobrado)}`;
-    document.getElementById('stampFecha').textContent=`Actualizado: ${new Date().toLocaleString('es-AR')}`;
-    renderIngresos();
-    renderResultadoNeto();
-  }catch(err){
-    estado.className='estado error';
-    estado.textContent=`Error: ${err.message}`;
-  }
-}
+const LIM_FILAS=1000;
+const pillTipo=k=>`<span class="pill ${k.tipo==='OP'?'op':'noop'}">${k.tipo==='OP'?'Operativo':'No operativo'}</span>`;
 
-function filtrarIngresos(){
-  const emp=document.getElementById('flt-empresa').value;
-  return ingBrutos.filter(c=>{
-    if(emp && empresaKey(c.empresa,c.sucursal)!==emp) return false;
-    return true;
-  });
-}
+function renderDetalle(ing,egr){
+  renderFarmaciaPanel(ing.map(x=>x.c));
 
-function renderIngresos(){
-  const cobros=filtrarIngresos();
-  const total=cobros.reduce((a,c)=>a+(c.monto||0),0);
-  // El desglose por empresa (SIG/CEMEI/Neoform/Farmacia) ya lo da el filtro de Empresa de arriba —
-  // mostrarlo de nuevo acá era redundante.
-  document.getElementById('ing-summary').innerHTML=`
-    <div class="card"><div class="label">Total cobrado</div><div class="value">${formatARS(total)}</div></div>
-    <div class="card"><div class="label">Cobros</div><div class="value">${cobros.length}</div></div>`;
-
-  renderFarmaciaPanel(cobros);
-
-  // Resumen por tipo: OPERATIVO / NO OPERATIVO con Fiscalización expandible
-  const TIPOS_OP=['Pagos de cuotas','Venta de ordenes','Capitación','Fiscalización'];
-  const porTipoRes={};
-  cobros.forEach(c=>{
-    const t=c.tipoFactura||'Sin tipo';
-    if(!porTipoRes[t]) porTipoRes[t]={cantidad:0,total:0,subtipos:{}};
-    porTipoRes[t].cantidad++; porTipoRes[t].total+=(c.monto||0);
-    if(c.subTipo){
-      const s=c.subTipo;
-      if(!porTipoRes[t].subtipos[s]) porTipoRes[t].subtipos[s]={cantidad:0,total:0};
-      porTipoRes[t].subtipos[s].cantidad++; porTipoRes[t].subtipos[s].total+=(c.monto||0);
-    }
-  });
-  const entResOp=TIPOS_OP.filter(t=>porTipoRes[t]); // Solo tipos operativos
-  const totalRes=entResOp.reduce((a,t)=>a+porTipoRes[t].total,0);
-  document.getElementById('ing-tipoN').textContent=`(${entResOp.length})`;
-  const hdrStyle='padding:7px 12px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);background:var(--paper);border-bottom:1px solid var(--paper-line)';
-  let resHtml=`<tr><td colspan="3" style="${hdrStyle}">Operativo</td></tr>`;
-  let ri=0;
-  entResOp.forEach(tipo=>{
-    const d=porTipoRes[tipo];
-    const hasSub=Object.keys(d.subtipos).length>0;
-    const rid=`rr${ri}`;
-    resHtml+=`<tr ${hasSub?`onclick="toggleResumen('${rid}')" style="cursor:pointer;background:var(--paper)"`:''}>
-      <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:14px;${hasSub?'font-weight:600':''}">${hasSub?`<span class="arr" id="arr-${rid}">&#9658; </span>`:''}${esc(tipo)}</td>
-      <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:14px;text-align:right;font-family:var(--mono)">${d.cantidad}</td>
-      <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:14px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">${formatARS(d.total)}</td>
-    </tr>`;
-    if(hasSub) Object.entries(d.subtipos).sort((a,b)=>b[1].total-a[1].total).forEach(([sub,sd])=>{
-      resHtml+=`<tr class="res-sub-row" data-res="${rid}" style="display:none">
-        <td style="padding:7px 12px 7px 28px;border-bottom:1px solid var(--paper-line);font-size:12.5px;color:var(--muted)">${esc(sub)}</td>
-        <td style="padding:7px 12px;border-bottom:1px solid var(--paper-line);font-size:12.5px;text-align:right;font-family:var(--mono);color:var(--muted)">${sd.cantidad}</td>
-        <td style="padding:7px 12px;border-bottom:1px solid var(--paper-line);font-size:12.5px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--muted)">${formatARS(sd.total)}</td>
-      </tr>`;
-    });
-    ri++;
-  });
-  const subtotalStyle='padding:9px 12px;font-weight:700;font-size:13px;border-top:1px solid var(--ink);border-bottom:1px solid var(--paper-line);background:var(--paper)';
-  const cantOp=entResOp.reduce((a,t)=>a+porTipoRes[t].cantidad,0);
-  resHtml+=`<tr><td style="${subtotalStyle}">Total Operativo</td><td style="${subtotalStyle}text-align:right;font-family:var(--mono)">${cantOp}</td><td style="${subtotalStyle}text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">${formatARS(totalRes)}</td></tr>`;
-  // NO OPERATIVO: cualquier tipo que no esté en TIPOS_OP
-  const tiposNoOp=Object.keys(porTipoRes).filter(t=>!TIPOS_OP.includes(t));
-  resHtml+=`<tr><td colspan="3" style="${hdrStyle}">No Operativo</td></tr>`;
-  if(tiposNoOp.length===0){
-    resHtml+=`<tr><td colspan="3" style="padding:8px 12px;font-size:12.5px;color:var(--muted);font-style:italic;border-bottom:1px solid var(--paper-line)">Sin registros</td></tr>`;
-  } else {
-    tiposNoOp.forEach(tipo=>{
-      const d=porTipoRes[tipo];
-      const hasSub=Object.keys(d.subtipos||{}).length>0;
-      const rid=`rr${ri}`;
-      resHtml+=`<tr ${hasSub?`onclick="toggleResumen('${rid}')" style="cursor:pointer;background:var(--paper)"`:''}>
-        <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:14px;${hasSub?'font-weight:600':''}">${hasSub?`<span class="arr" id="arr-${rid}">&#9658; </span>`:''}${esc(tipo)}</td>
-        <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:14px;text-align:right;font-family:var(--mono)">${d.cantidad}</td>
-        <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:14px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">${formatARS(d.total)}</td>
-      </tr>`;
-      ri++;
-    });
-  }
-  const totalNoOp=tiposNoOp.reduce((a,t)=>a+porTipoRes[t].total,0);
-  const cantNoOp=tiposNoOp.reduce((a,t)=>a+porTipoRes[t].cantidad,0);
-  resHtml+=`<tr><td style="${subtotalStyle}">Total No Operativo</td><td style="${subtotalStyle}text-align:right;font-family:var(--mono)">${cantNoOp}</td><td style="${subtotalStyle}text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">${formatARS(totalNoOp)}</td></tr>`;
-  resHtml+=`<tr><td style="padding:10px 12px;font-weight:700;border-top:2px solid var(--ink)">Total</td><td style="padding:10px 12px;font-weight:700;text-align:right;font-family:var(--mono);border-top:2px solid var(--ink)">${cobros.length}</td><td style="padding:10px 12px;font-weight:700;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;border-top:2px solid var(--ink)">${formatARS(totalRes+totalNoOp)}</td></tr>`;
-  document.getElementById('ing-tipo-tbody').innerHTML=resHtml;
-
-  // Resumen por categoría — Sucursal > Categoría (estilo Excel de Presupuesto Financiero) >
-  // sub-ítem de Convenios Directos. "Prefacturas" se muestra como "ACLISA" (por ahora todo lo
-  // que factura con origen Prefacturas es ACLISA); "Medicamentos" se muestra como "Hospital de
-  // Día" (así lo pidió Gustavo, la clasificación de fondo no cambia, solo la etiqueta acá).
-  const ORDEN_CAT=['Convenios Directos','ACLISA','Particular','Plus','Hospital de Día','Seña/Descartable'];
-  function categoriaExcel(c){
-    if(['Salud Integral','UTA','Medicina Laboral','OSPES'].includes(c.tipoConcepto)) return {cat:'Convenios Directos',sub:c.tipoConcepto};
-    // Dentro de "ACLISA" se desglosa por la obra social real (AMP, IASEP, OSMATA, SPF, Swiss
-    // Medical, etc. — ver la rendición que manda ACLISA), extraída del concepto en el backend.
-    if((c.origenFactura||'').toLowerCase().includes('prefactura')) return {cat:'ACLISA',sub:c.obraSocial||null};
-    if(c.tipoConcepto==='Medicamentos') return {cat:'Hospital de Día',sub:null};
-    if(c.tipoConcepto==='Adicionales / Plus') return {cat:'Plus',sub:null};
-    if(c.tipoConcepto==='Seña / Descartable') return {cat:'Seña/Descartable',sub:null};
-    // Antes cualquier cosa sin match caía en "Particular" — eso mezclaba origen "Manual" (u otro
-    // valor explícito que no sea Particulares) con los realmente particulares y desfasaba el total
-    // contra el filtro de Origen. Ahora solo entra acá cuando el origen es Particulares o no viene
-    // especificado; lo demás queda separado y visible.
-    const og=(c.origenFactura||'').toLowerCase();
-    if(og && !['particulares','particular'].includes(og)) return {cat:`Origen: ${c.origenFactura}`,sub:null};
-    return {cat:'Particular',sub:null};
-  }
-  const porSucCat={};
-  // Esta jerarquía (sucursal > Categoría > sub-ítem) es de CEMEI y, desde que ACLISA se desglosa
-  // por obra social, también de Neoform (agrupado bajo la etiqueta "Neoform" en vez de una
-  // sucursal real, que no tiene). Salud Integral (SIG) sigue afuera: no tiene sucursales ni pasa
-  // por ACLISA, así que acá solo generaría una fila "Sin sucursal" sin nada debajo.
-  cobros.filter(c=>['CEMEI','NEO'].includes(empresaKey(c.empresa,c.sucursal))).forEach(c=>{
-    const suc=empresaKey(c.empresa,c.sucursal)==='NEO' ? 'Neoform' : (c.sucursal||'Sin sucursal');
-    const {cat,sub}=categoriaExcel(c);
-    if(!porSucCat[suc]) porSucCat[suc]={total:0,cantidad:0,cats:{}};
-    porSucCat[suc].total+=(c.monto||0); porSucCat[suc].cantidad++;
-    if(!porSucCat[suc].cats[cat]) porSucCat[suc].cats[cat]={total:0,cantidad:0,subs:{}};
-    porSucCat[suc].cats[cat].total+=(c.monto||0); porSucCat[suc].cats[cat].cantidad++;
-    if(sub){
-      if(!porSucCat[suc].cats[cat].subs[sub]) porSucCat[suc].cats[cat].subs[sub]={total:0,cantidad:0};
-      porSucCat[suc].cats[cat].subs[sub].total+=(c.monto||0); porSucCat[suc].cats[cat].subs[sub].cantidad++;
-    }
-  });
-  const sucOrden=Object.keys(porSucCat).sort((a,b)=>porSucCat[b].total-porSucCat[a].total);
-  document.getElementById('ing-catN').textContent=`(${sucOrden.length})`;
-  let catHtml=''; let ci=0;
-  sucOrden.forEach(suc=>{
-    const sd=porSucCat[suc];
-    catHtml+=`<tr><td colspan="4" style="padding:8px 12px;font-weight:700;background:var(--paper);border-bottom:1px solid var(--paper-line);font-size:12.5px;text-transform:uppercase;letter-spacing:0.04em">${esc(suc)} — ${formatARS(sd.total)}</td></tr>`;
-    const catsOrden=Object.keys(sd.cats).sort((a,b)=>{
-      const ia=ORDEN_CAT.indexOf(a), ib=ORDEN_CAT.indexOf(b);
-      return (ia<0?99:ia)-(ib<0?99:ib);
-    });
-    catsOrden.forEach(cat=>{
-      const cd=sd.cats[cat];
-      const hasSub=Object.keys(cd.subs).length>0;
-      const rid=`cc${ci}`;
-      const pct=sd.total?(cd.total/sd.total*100).toFixed(1):'0.0';
-      catHtml+=`<tr ${hasSub?`onclick="toggleCategoria('${rid}')" style="cursor:pointer"`:''}>
-        <td style="padding:8px 12px 8px 22px;border-bottom:1px solid var(--paper-line);font-size:14px;${hasSub?'font-weight:600':''}">${hasSub?`<span class="arr" id="arr-${rid}">&#9658; </span>`:''}${esc(cat)}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid var(--paper-line);font-size:14px;text-align:right;font-family:var(--mono)">${cd.cantidad}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid var(--paper-line);font-size:14px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">${formatARS(cd.total)}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid var(--paper-line);font-size:12.5px;text-align:right;font-family:var(--mono);color:var(--muted)">${pct}%</td>
-      </tr>`;
-      if(hasSub) Object.entries(cd.subs).sort((a,b)=>b[1].total-a[1].total).forEach(([sub,subd])=>{
-        catHtml+=`<tr class="cc-sub-row" data-cc="${rid}" style="display:none">
-          <td style="padding:6px 12px 6px 40px;border-bottom:1px solid var(--paper-line);font-size:12.5px;color:var(--muted)">${esc(sub)}</td>
-          <td style="padding:6px 12px;border-bottom:1px solid var(--paper-line);font-size:12.5px;text-align:right;font-family:var(--mono);color:var(--muted)">${subd.cantidad}</td>
-          <td style="padding:6px 12px;border-bottom:1px solid var(--paper-line);font-size:12.5px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--muted)">${formatARS(subd.total)}</td>
-          <td style="border-bottom:1px solid var(--paper-line)"></td>
-        </tr>`;
-      });
-      ci++;
-    });
-  });
-  if(sucOrden.length===0) catHtml=`<tr><td colspan="4" style="padding:8px 12px;font-size:12.5px;color:var(--muted);font-style:italic">Sin registros</td></tr>`;
-  document.getElementById('ing-cat-tbody').innerHTML=catHtml;
-
-  // Resumen por forma de pago (Farmacia tiene su propio panel más abajo, no se mezcla acá)
+  // Forma de pago: cobros operativos, sin Farmacia (tiene su propio panel arriba)
   const porFP={};
-  cobros.filter(c=>empresaKey(c.empresa,c.sucursal)!=='FARMACIA').forEach(c=>{
-    const fp=c.formaPago||'Sin especificar';
-    if(!porFP[fp]) porFP[fp]={cantidad:0,total:0};
-    porFP[fp].cantidad++; porFP[fp].total+=(c.monto||0);
-  });
-  const fpEnts=Object.entries(porFP).sort((a,b)=>b[1].total-a[1].total);
-  document.getElementById('ing-fpN').textContent=`(${fpEnts.length})`;
-  const totalFP=fpEnts.reduce((a,e)=>a+e[1].total,0);
-  document.getElementById('ing-fp-tbody').innerHTML=fpEnts.map(([fp,d])=>`<tr>
-    <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:14px">${esc(fp)}</td>
-    <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:14px;text-align:right;font-family:var(--mono)">${d.cantidad}</td>
-    <td style="padding:9px 12px;border-bottom:1px solid var(--paper-line);font-size:14px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">${formatARS(d.total)}</td>
-  </tr>`).join('')+`<tr>
-    <td style="padding:10px 12px;font-weight:700;border-top:2px solid var(--ink)">Total</td>
-    <td style="padding:10px 12px;font-weight:700;text-align:right;font-family:var(--mono);border-top:2px solid var(--ink)">${cobros.length}</td>
-    <td style="padding:10px 12px;font-weight:700;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;border-top:2px solid var(--ink)">${formatARS(totalFP)}</td>
-  </tr>`;
+  const base=ing.filter(x=>x.k.tipo==='OP' && x.e!=='FARMACIA');
+  base.forEach(x=>{ const fp=x.c.formaPago||'Sin especificar'; const d=porFP[fp]||(porFP[fp]={n:0,t:0}); d.n++; d.t+=(x.c.monto||0); });
+  const fpEnts=Object.entries(porFP).sort((a,b)=>b[1].t-a[1].t);
+  document.getElementById('ing-fpN').textContent=`(${fpEnts.length} · ingresos operativos, sin Farmacia)`;
+  document.getElementById('ing-fp-tbody').innerHTML=fpEnts.map(([fp,d])=>`<tr><td>${esc(fp)}</td><td class="num">${d.n}</td><td class="num">${formatARS(d.t)}</td></tr>`).join('')
+    +`<tr class="total-row"><td>Total</td><td class="num">${base.length}</td><td class="num">${formatARS(sumaPor(base,x=>x.c.monto))}</td></tr>`;
 
-  // Tabla cobros agrupada por tipo con filas expandibles
-  document.getElementById('ing-tablaN').textContent=`(${cobros.length})`;
-  const porTipoTabla={};
-  cobros.forEach(c=>{
-    const t=c.tipoFactura||'Sin tipo';
-    if(!porTipoTabla[t]) porTipoTabla[t]={total:0,count:0,rows:[]};
-    porTipoTabla[t].total+=(c.monto||0);
-    porTipoTabla[t].count++;
-    porTipoTabla[t].rows.push(c);
-  });
-  let ingHtml=`<tr><td colspan="7" style="${hdrStyle}">Operativo</td></tr>`;
-  let ti=0;
-  const TIPOS_OP_ING=['Pagos de cuotas','Venta de ordenes','Capitación','Fiscalización'];
-  TIPOS_OP_ING.filter(t=>porTipoTabla[t]).forEach(tipo=>{
-    const datos=porTipoTabla[tipo];
-    const tid=`it${ti}`;
-    ingHtml+=`<tr class="ing-tipo-row" onclick="toggleIngTipo('${tid}')" style="cursor:pointer;background:var(--paper);">
-      <td colspan="7" style="padding:11px 12px;font-weight:700;font-size:14px;">
-        <span class="arr" id="arr-${tid}">▶</span> ${esc(tipo)}
-        <span style="font-weight:400;font-size:12.5px;color:var(--muted);margin-left:12px">${datos.count} cobros — ${formatARS(datos.total)}</span>
-      </td>
-    </tr>`;
-    datos.rows.forEach(c=>{
-      ingHtml+=`<tr class="ing-det-row" data-tipo="${tid}" style="display:none">
-        <td>${formatFecha(c.fechaCobro)}</td>
-        <td>${badgeEmpresa(c.empresa,c.sucursal)}</td>
-        <td>${(c.obraSocial||c.sucursal)?`<span style="font-size:12.5px;color:var(--muted)">${esc(c.obraSocial||c.sucursal)}</span>`:'—'}</td>
-        <td><span style="font-size:11.5px;color:var(--muted)">${esc(c.tipoConcepto||'—')}</span></td>
-        <td>${esc(c.cliente)}</td>
-        <td>${esc(c.formaPago)}</td>
-        <td class="num">${formatARS(c.monto)}</td>
-        <td class="small">${conceptoCorto(c.concepto)}</td>
-      </tr>`;
-    });
-    ti++;
-  });
-  // NO OPERATIVO en tabla detallada
-  ingHtml+=`<tr><td colspan="7" style="padding:8px 12px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);background:var(--paper);border-bottom:1px solid var(--paper-line)">No Operativo</td></tr>`;
-  const tiposNoOpD=Object.keys(porTipoTabla).filter(t=>!TIPOS_OP_ING.includes(t));
-  if(tiposNoOpD.length===0){
-    ingHtml+=`<tr><td colspan="7" style="padding:8px 12px;font-size:12.5px;color:var(--muted);font-style:italic">Sin registros</td></tr>`;
-  } else {
-    tiposNoOpD.forEach(tipo=>{
-      const datos=porTipoTabla[tipo];
-      const tid=`it${ti}`;
-      ingHtml+=`<tr class="ing-tipo-row" onclick="toggleIngTipo('${tid}')" style="cursor:pointer;background:#faf8f4;">
-        <td colspan="7" style="padding:11px 12px;font-size:14px;font-weight:600;border-bottom:1px solid var(--paper-line)">
-          <span class="arr" id="arr-${tid}">&#9658;</span> ${esc(tipo)}
-          <span style="font-weight:400;font-size:12.5px;color:var(--muted);margin-left:12px">${datos.count} cobros — ${formatARS(datos.total)}</span>
-        </td>
-      </tr>`;
-      (datos.rows||[]).forEach(c=>{
-        ingHtml+=`<tr class="ing-det-row" data-tipo="${tid}" style="display:none">
-          <td>${formatFecha(c.fechaCobro)}</td><td>${badgeEmpresa(c.empresa,c.sucursal)}</td>
-          <td>${(c.obraSocial||c.sucursal)?`<span style="font-size:12.5px;color:var(--muted)">${esc(c.obraSocial||c.sucursal)}</span>`:'—'}</td>
-          <td><span style="font-size:11.5px;color:var(--muted)">${esc(c.tipoConcepto||'—')}</span></td>
-          <td>${esc(c.cliente)}</td><td>${esc(c.formaPago)}</td>
-          <td class="num">${formatARS(c.monto)}</td><td class="small">${conceptoCorto(c.concepto)}</td>
-        </tr>`;
-      });
-      ti++;
-    });
-  }
-  document.getElementById('ing-tbody').innerHTML=ingHtml;
+  // Pagos
+  const pg=[...egr].sort((a,b)=>(b.p.fechaCobro||'').localeCompare(a.p.fechaCobro||''));
+  document.getElementById('eg-tablaN').textContent=`(${pg.length})`;
+  document.getElementById('eg-tbody').innerHTML=pg.slice(0,LIM_FILAS).map(x=>{ const p=x.p; return `<tr>
+    <td>${formatFecha(p.fechaCobro)}</td>
+    <td>${badgeEmpresa(p.origen,p.unidad)}</td>
+    <td>${pillTipo(x.k)}</td>
+    <td>${rubroTxt(x.k)}</td>
+    <td>${esc(p.proveedor)}</td>
+    <td class="num">${formatARS(p.importe)}</td>
+    <td class="small">${conceptoCorto(p.concepto)}</td>
+  </tr>`; }).join('');
+  document.getElementById('eg-lim').textContent=pg.length>LIM_FILAS?`Se muestran los ${LIM_FILAS} pagos más recientes de ${pg.length}. El botón Excel exporta todos.`:'';
+
+  // Cobros
+  const cb=[...ing].sort((a,b)=>(b.c.fechaCobro||'').localeCompare(a.c.fechaCobro||''));
+  document.getElementById('ing-tablaN').textContent=`(${cb.length})`;
+  document.getElementById('ing-tbody').innerHTML=cb.slice(0,LIM_FILAS).map(x=>{ const c=x.c; return `<tr>
+    <td>${formatFecha(c.fechaCobro)}</td>
+    <td>${badgeEmpresa(c.empresa,c.sucursal)}</td>
+    <td>${pillTipo(x.k)}</td>
+    <td>${rubroTxt(x.k)}</td>
+    <td>${esc(c.cliente)}</td>
+    <td>${esc(c.formaPago)}</td>
+    <td class="num">${formatARS(c.monto)}</td>
+    <td class="small">${conceptoCorto(c.concepto)}</td>
+  </tr>`; }).join('');
+  document.getElementById('ing-lim').textContent=cb.length>LIM_FILAS?`Se muestran los ${LIM_FILAS} cobros más recientes de ${cb.length}. El botón Excel exporta todos.`:'';
 }
 
+// ── Exportaciones (CSV que abre Excel): incluyen Tipo y Rubro/Subrubro/Detalle ya clasificados ──
+function exportarEgresosCSV(){
+  const emp=document.getElementById('flt-empresa').value;
+  const filas=egClas.filter(x=>!emp||x.e===emp);
+  descargarCSV(filas,[
+    {header:'Fecha',get:x=>formatFecha(x.p.fechaCobro)},
+    {header:'Empresa',get:x=>x.p.origen||''},
+    {header:'Unidad',get:x=>x.p.unidad||''},
+    {header:'Tipo',get:x=>x.k.tipo==='OP'?'Operativo':'No operativo'},
+    {header:'Rubro',get:x=>bonito(x.k.cat)},
+    {header:'Subrubro',get:x=>bonito(x.k.sub||'')},
+    {header:'Detalle',get:x=>bonito(x.k.det||'')},
+    {header:'Proveedor',get:x=>x.p.proveedor||''},
+    {header:'Banco',get:x=>x.p.banco||''},
+    {header:'Rubro original',get:x=>x.p.rubro||''},
+    {header:'Importe',get:x=>x.p.importe||0,numero:true},
+    {header:'Concepto',get:x=>x.p.concepto||''},
+    {header:'Cobrado',get:x=>x.p.cobrado||''},
+    {header:'ID Pago',get:x=>x.p.idPago||''},
+  ],'egresos_detalle');
+}
 function exportarIngresosCSV(){
-  const cobros=filtrarIngresos();
-  descargarCSV(cobros,[
-    {header:'Fecha Cobro',get:c=>formatFecha(c.fechaCobro)},
-    {header:'Empresa',get:c=>c.empresa||''},
-    {header:'Tipo Factura',get:c=>c.tipoFactura||''},
-    {header:'Sub Tipo',get:c=>c.subTipo||''},
-    {header:'Sucursal',get:c=>c.sucursal||''},
-    {header:'Origen',get:c=>c.origenFactura||''},
-    {header:'Tipo Concepto',get:c=>c.tipoConcepto||''},
-    {header:'Cliente',get:c=>c.cliente||''},
-    {header:'Obra Social',get:c=>c.obraSocial||''},
-    {header:'Forma de Pago',get:c=>c.formaPago||''},
-    {header:'Comprobante',get:c=>c.comprobante||''},
-    {header:'Monto Facturado',get:c=>c.montoFacturado??c.monto??0,numero:true},
-    {header:'Monto Cobrado',get:c=>c.monto||0,numero:true},
-    {header:'Concepto',get:c=>c.concepto||''},
+  const emp=document.getElementById('flt-empresa').value;
+  const filas=ingClas.filter(x=>!emp||x.e===emp);
+  descargarCSV(filas,[
+    {header:'Fecha Cobro',get:x=>formatFecha(x.c.fechaCobro)},
+    {header:'Empresa',get:x=>x.c.empresa||''},
+    {header:'Sucursal',get:x=>x.c.sucursal||''},
+    {header:'Tipo',get:x=>x.k.tipo==='OP'?'Operativo':'No operativo'},
+    {header:'Rubro',get:x=>bonito(x.k.cat)},
+    {header:'Subrubro',get:x=>bonito(x.k.sub||'')},
+    {header:'Tipo Factura',get:x=>x.c.tipoFactura||''},
+    {header:'Sub Tipo',get:x=>x.c.subTipo||''},
+    {header:'Origen',get:x=>x.c.origenFactura||''},
+    {header:'Tipo Concepto',get:x=>x.c.tipoConcepto||''},
+    {header:'Cliente',get:x=>x.c.cliente||''},
+    {header:'Obra Social',get:x=>x.c.obraSocial||''},
+    {header:'Forma de Pago',get:x=>x.c.formaPago||''},
+    {header:'Comprobante',get:x=>x.c.comprobante||''},
+    {header:'Monto Facturado',get:x=>x.c.montoFacturado??x.c.monto??0,numero:true},
+    {header:'Monto Cobrado',get:x=>x.c.monto||0,numero:true},
+    {header:'Concepto',get:x=>x.c.concepto||''},
   ],'ingresos_detalle');
 }
+
 
 // La carga de ventas de Farmacia solo tiene sentido cuando se está mirando Farmacia (o "todas las
 // empresas") — con SIG/CEMEI/Neo elegidos puntualmente no corresponde mostrarla.
 function actualizarVisibilidadCargaFarmacia(){
   const emp=document.getElementById('flt-empresa').value;
-  const visible = emp==='' || emp==='FARMACIA';
-  document.getElementById('farmacia-upload-section').style.display = visible ? '' : 'none';
+  document.getElementById('farmacia-upload-section').style.display=(emp===''||emp==='FARMACIA')?'':'none';
 }
-// flt-empresa es compartido por Ingresos y Egresos — un solo cambio dispara el recálculo de las dos
-// secciones más el resultado neto combinado.
+// El filtro de empresa no vuelve a pedir datos: reclasifica lo ya traído y rearma todo el reporte.
 document.getElementById('flt-empresa').addEventListener('change',()=>{
   actualizarVisibilidadCargaFarmacia();
-  if(ingBrutos.length) renderIngresos();
-  if(egBrutos.length) renderEgresos();
-  renderResultadoNeto();
+  renderReporte();
 });
 actualizarVisibilidadCargaFarmacia();
 
