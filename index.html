@@ -529,7 +529,7 @@ const esTodoMayus = s => { const l=String(s||'').replace(/[^A-Za-zÁÉÍÓÚÜÑ
 
 // Los rubros vienen de cada API en MAYÚSCULAS ("FEDERACION FARMACEUTICA DE FSA"). Para que se lean
 // bien se pasan a Título solo al mostrar — las claves de agrupación siempre usan normT().
-const ACRONIMOS=new Set(['SAMED','ARCA','AFIP','BBVA','CEMEI','ACLISA','SOEM','NEO','REFSA','PLEX','ART','IVA','MP','OS','SIG','SRL','SA','SMG','CNP','JRB','EZVIZ','GAL','BOP','OSCEARA','OSPACA','OSPES','UTA','ROISA','MEPROA','COD','FC','AMP','IASEP','OSMATA','SPF','OSDE','FSA','SL','MKT','ML','FATFA','AFTF','CBU','DNI','CUIT']);
+const ACRONIMOS=new Set(['SAMED','ARCA','AFIP','BBVA','CEMEI','ACLISA','SOEM','REFSA','PLEX','ART','IVA','MP','OS','SIG','SRL','SA','SMG','CNP','JRB','EZVIZ','GAL','BOP','OSCEARA','OSPACA','OSPES','UTA','ROISA','MEPROA','COD','FC','AMP','IASEP','OSMATA','SPF','OSDE','FSA','SL','MKT','ML','FATFA','AFTF','CBU','DNI','CUIT']);
 const MINUSCULAS=new Set(['DE','DEL','LA','LAS','LOS','Y','E','EN','PARA','A','AL','POR','CON','SIN','O','U']);
 const ACENTOS={MEDICOS:'Médicos',MEDICO:'Médico',MERCADERIAS:'Mercaderías',MERCADERIA:'Mercadería',DROGUERIAS:'Droguerías',DROGUERIA:'Droguería',COMPUTACION:'Computación',PAPELERIA:'Papelería',LAVANDERIA:'Lavandería',OXIGENO:'Oxígeno',PRESTAMO:'Préstamo',PRESTAMOS:'Préstamos',DEVOLUCION:'Devolución',DEVOLUCIONES:'Devoluciones',COMERCIALIZACION:'Comercialización',ADMINISTRACION:'Administración',FEDERACION:'Federación',FARMACEUTICA:'Farmacéutica',CAPITACION:'Capitación',FISCALIZACION:'Fiscalización',ORDENES:'Órdenes',INFORMATICOS:'Informáticos',LIBRERIA:'Librería',ODONTOLOGIA:'Odontología',MUNICIPLIDAD:'Municipalidad',DIA:'Día',PINTURERIA:'Pinturería',FERRETERIA:'Ferretería',VIATICOS:'Viáticos',SENAS:'Señas','SEÑAS':'Señas',QUIROFANO:'Quirófano',BARCENA:'Bárcena',COMISION:'Comisión',DOLARES:'Dólares',ENFERMERIA:'Enfermería',MODULACION:'Modulación',SANCION:'Sanción',HONORARIO:'Honorario',PREFACTURAS:'Prefacturas',DIAS:'Días',RESIDUOS:'Residuos',CAMARAS:'Cámaras'};
 function bonito(s){
@@ -575,11 +575,19 @@ function clasificarIngreso(c){
   if(ING_NOOP_TIPOS.includes(tf) || normT(c.cliente)==='OTROS INGRESOS'){
     return {tipo:'NOOP',cat:CAT_ING_NOOP,sub:ING_NOOP_TIPOS.includes(tf)?tf:'Otros ingresos',det:null,o:1};
   }
-  // Farmacia (ventas cargadas por CSV, y la rendición de cajas de la sucursal Farmacia de CEMEI):
-  // misma jerarquía que el Excel de Farmacia — Cobranzas por medio de pago > En efectivo / Bancarios y MP.
+  // Otros convenios de la Farmacia: cobranza (RC) de Neoform, CEMEI, Salud Integral interno, directores y
+  // colaboradores. El backend los separa del resto (CONVENIOS_FARMACIA en server.js) y acá van como categoría
+  // propia, igual que "OTROS CONVENIOS" en la planilla: Otros convenios > grupo > cliente.
+  if(tf==='Farmacia' && c.subTipo==='Otros convenios'){
+    return {tipo:'OP',cat:'Otros convenios',sub:c.convenioGrupo||'Otros',det:c.cliente||null,o:60};
+  }
+  // Farmacia: ventas cargadas por CSV (débito, crédito, transferencias, QR…) y rendiciones de caja de la
+  // sucursal Farmacia de CEMEI (= el efectivo; el "Efectivo" del CSV se descarta al cargar, ver
+  // esEfectivoVentasFarmacia). Misma jerarquía que el Excel de Farmacia — Cobranzas por medio de pago >
+  // En efectivo / Bancarios y MP.
   if(tf==='Farmacia' || key==='FARMACIA'){
     const efectivo=normT(c.formaPago)==='EFECTIVO';
-    return {tipo:'OP',cat:'Cobranzas por medio de pago',sub:efectivo?'En efectivo':'Bancarios y MP',det:c.formaPago||null,o:50};
+    return {tipo:'OP',cat:'Cobranzas por medio de pago',sub:efectivo?'En efectivo':'Bancarios y MP',det:efectivo?'Rendiciones de caja':(c.formaPago||null),o:50};
   }
   // Salud Integral: tipo de factura (Capitación, Pagos de cuotas, Venta de órdenes, Fiscalización)
   if(tf) return {tipo:'OP',cat:tf==='Venta de ordenes'?'Venta de órdenes':tf,sub:c.subTipo||null,det:null,o:50};
@@ -794,12 +802,12 @@ async function consultarEgresos(){
   }
 }
 
-// Rendiciones de caja de Farmacia: cobros de la caja de CEMEI (sucursal Farmacia, cliente SAMED, concepto
-// "RENDICION DE CAJAS: <cajera>" o "TRANSPORTE TOTAL DE RENDICIONES DE CAJA"). Es el efectivo que la cajera
-// entrega, el MISMO que ya está contado en las ventas de Farmacia (CSV del punto de venta): sumarlo duplicaba
-// el efectivo (confirmado por Gustavo). Se descartan al cargar, así no entran en ningún total.
-const RE_RENDICION=/RENDICION(ES)? DE CAJA/;
-const esRendicionCajaFarmacia=c=>empresaKey(c.empresa,c.sucursal)==='FARMACIA' && RE_RENDICION.test(normT(c.concepto));
+// Efectivo de Farmacia: se toma de las RENDICIONES DE CAJA (cobros de la caja de CEMEI, sucursal Farmacia,
+// cliente SAMED, concepto "RENDICION DE CAJAS: <cajera>"), porque es lo que realmente ingresa a la empresa
+// (decisión de Gustavo). Esa plata es la misma que figura como "Efectivo" en las ventas del CSV del punto de
+// venta, así que el efectivo del CSV se descarta al cargar para no contarlo dos veces. El resto de las formas
+// de pago del CSV (débito, crédito, transferencias, QR…) se mantienen.
+const esEfectivoVentasFarmacia=c=>c.tipoFactura==='Farmacia' && c.subTipo!=='Otros convenios' && normT(c.formaPago)==='EFECTIVO';
 
 async function consultarIngresos(){
   const desde=document.getElementById('flt-desde').value;
@@ -810,9 +818,9 @@ async function consultarIngresos(){
   estado.className='estado'; estado.textContent='Consultando ingresos…';
   try{
     const data=await fetchConDespertar(`${backend}/api/cobros?desde=${desde}&hasta=${hasta||desde}`, estado);
-    const rend=data.cobros.filter(esRendicionCajaFarmacia);
-    ingExcl={n:rend.length,monto:rend.reduce((a,c)=>a+(c.monto||0),0)};
-    ingBrutos=data.cobros.filter(c=>!esRendicionCajaFarmacia(c));
+    const descartados=data.cobros.filter(esEfectivoVentasFarmacia);
+    ingExcl={n:descartados.length,monto:descartados.reduce((a,c)=>a+(c.monto||0),0)};
+    ingBrutos=data.cobros.filter(c=>!esEfectivoVentasFarmacia(c));
     ingClas=ingBrutos.map(c=>({c,k:clasificarIngreso(c),e:empresaKey(c.empresa,c.sucursal)}));
     ingFarmaciaDeuda=data.farmaciaDeuda||{cobertura:0,ctaCtePendiente:0,meses:[]};
     ingOk=true;
@@ -930,7 +938,7 @@ function renderReporte(){
   document.getElementById('aviso').innerHTML=faltan.length
     ? `<div class="aviso">No se pudieron cargar los ${faltan.join(' ni los ')}: el resultado de abajo está incompleto. Volvé a tocar Consultar.</div>` : '';
   if(ingExcl.n && (!emp||emp==='FARMACIA')){
-    document.getElementById('aviso').innerHTML+=`<div class="aviso info">No se suman ${ingExcl.n} rendiciones de caja de Farmacia (${formatARS(ingExcl.monto)}): es el mismo efectivo que ya está en las ventas de Farmacia, sumarlas lo duplicaba.</div>`;
+    document.getElementById('aviso').innerHTML+=`<div class="aviso info">El efectivo de Farmacia se toma de las rendiciones de caja, que es lo que ingresa a la empresa. No se suma el efectivo del CSV de ventas (${formatARS(ingExcl.monto)}) porque es la misma plata.</div>`;
   }
 
   // ── Resumen ──
@@ -1011,7 +1019,7 @@ function dibujarGraficos(aIngOp,aEgOp){
 }
 
 // ── Detalle: Farmacia, forma de pago y listados ──
-function renderFarmaciaPanel(cobros){
+function renderFarmaciaPanel(cobros,conv){
   const panel=document.getElementById('farmacia-panel');
   const farm=cobros.filter(c=>empresaKey(c.empresa,c.sucursal)==='FARMACIA');
   if(farm.length===0){
@@ -1029,9 +1037,12 @@ function renderFarmaciaPanel(cobros){
   const otras=total-ORDEN_FP.reduce((a,fp)=>a+(porFP[fp]||0),0);
   const celda=(l,v,fuerte)=>`<div><div class="fp-l">${l}</div><div class="fp-v"${fuerte?' style="color:var(--farm);font-weight:800"':''}>${formatARS(v)}</div></div>`;
   const celdas=ORDEN_FP.map(fp=>celda(ETIQUETAS_FP[fp],porFP[fp]||0)).join('')+(Math.abs(otras)>0.5?celda('Otras formas',otras):'');
-  const nota=ingFarmaciaDeuda.meses && ingFarmaciaDeuda.meses.length
-    ? `<div style="font-size:12.5px;color:var(--muted);margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">Incluye ventas del mes cobradas al momento y cobranzas de Cta. Cte. vieja (RC). No incluye Cobertura (${formatARS(ingFarmaciaDeuda.cobertura)}) ni Cta. Cte. pendiente de este mes (${formatARS(ingFarmaciaDeuda.ctaCtePendiente)}): esas quedan como deuda hasta que se cobren.</div>`
-    : '';
+  const hayCSV=ingFarmaciaDeuda.meses && ingFarmaciaDeuda.meses.length;
+  const notaTxt=`El efectivo sale de las rendiciones de caja (lo que ingresa a la empresa); el efectivo del CSV de ventas no se suma. `+(hayCSV
+    ? `Las demás formas de pago incluyen ventas del mes cobradas al momento y cobranzas de Cta. Cte. vieja (RC). No incluye Cobertura (${formatARS(ingFarmaciaDeuda.cobertura)}) ni Cta. Cte. pendiente de este mes (${formatARS(ingFarmaciaDeuda.ctaCtePendiente)}): esas quedan como deuda hasta que se cobren.`
+    : `No hay CSV de ventas cargado para este período: solo aparece el efectivo. Subí el CSV (arriba) para ver débito, crédito, transferencias y QR.`);
+  const notaConv=(conv&&conv.n)?` Aparte, en Otros convenios: ${formatARS(conv.monto)} de cobranza de cuentas corrientes (Neoform, CEMEI, directores y colaboradores), que no entra en estas formas de pago.`:'';
+  const nota=`<div style="font-size:12.5px;color:var(--muted);margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">${notaTxt}${notaConv}</div>`;
   panel.innerHTML=`<div class="block-title">Farmacia — cobrado del período, por forma de pago</div>
     <div class="fp-card"><div class="fp-grid">${celdas}${celda('Cobrado total (caja)',total,true)}</div>${nota}</div>`;
 }
@@ -1040,7 +1051,9 @@ const LIM_FILAS=1000;
 const pillTipo=k=>`<span class="pill ${k.tipo==='OP'?'op':'noop'}">${k.tipo==='OP'?'Operativo':'No operativo'}</span>`;
 
 function renderDetalle(ing,egr){
-  renderFarmaciaPanel(ing.filter(x=>x.k.tipo==='OP').map(x=>x.c));
+  const farmOp=ing.filter(x=>x.k.tipo==='OP' && x.e==='FARMACIA');
+  const convFarm=farmOp.filter(x=>x.k.cat==='Otros convenios');
+  renderFarmaciaPanel(farmOp.filter(x=>x.k.cat!=='Otros convenios').map(x=>x.c),{n:convFarm.length,monto:sumaPor(convFarm,x=>x.c.monto)});
 
   // Forma de pago: cobros operativos, sin Farmacia (tiene su propio panel arriba)
   const porFP={};
