@@ -572,6 +572,17 @@ function categoriaExcel(c){
 function clasificarIngreso(c){
   const key=empresaKey(c.empresa,c.sucursal);
   const tf=c.tipoFactura||'';
+  // "OTROS INGRESOS" cargados en la facturación de la sucursal Farmacia (gift cards y vouchers a afiliados,
+  // vouchers comerciales…): en la planilla van en Otros convenios ("Gift card afiliados Salud y comercial"),
+  // no en No operativo. Los "OTROS INGRESOS" de SIG, CEMEI Consultorios o Neoform siguen siendo No operativo.
+  if(key==='FARMACIA' && normT(c.cliente)==='OTROS INGRESOS'){
+    const con=normT(c.concepto);
+    if(/GIFT ?CARD|VOUCHER/.test(con)){
+      const det=/GIFT ?CARD/.test(con)?'Gift card a afiliados':/CUMPLE/.test(con)?'Voucher cumpleaños afiliados':'Voucher comercial';
+      return {tipo:'OP',cat:'Otros convenios',sub:'Gift card afiliados Salud y comercial',det,o:60};
+    }
+    return {tipo:'OP',cat:'Otros convenios',sub:'Otros ingresos Farmacia',det:c.concepto?String(c.concepto).slice(0,60):null,o:60};
+  }
   if(ING_NOOP_TIPOS.includes(tf) || normT(c.cliente)==='OTROS INGRESOS'){
     return {tipo:'NOOP',cat:CAT_ING_NOOP,sub:ING_NOOP_TIPOS.includes(tf)?tf:'Otros ingresos',det:null,o:1};
   }
@@ -1041,7 +1052,7 @@ function renderFarmaciaPanel(cobros,conv){
   const notaTxt=`El efectivo sale de las rendiciones de caja (lo que ingresa a la empresa); el efectivo del CSV de ventas no se suma. `+(hayCSV
     ? `Las demás formas de pago incluyen ventas del mes cobradas al momento y cobranzas de Cta. Cte. vieja (RC). No incluye Cobertura (${formatARS(ingFarmaciaDeuda.cobertura)}) ni Cta. Cte. pendiente de este mes (${formatARS(ingFarmaciaDeuda.ctaCtePendiente)}): esas quedan como deuda hasta que se cobren.`
     : `No hay CSV de ventas cargado para este período: solo aparece el efectivo. Subí el CSV (arriba) para ver débito, crédito, transferencias y QR.`);
-  const notaConv=(conv&&conv.n)?` Aparte, en Otros convenios: ${formatARS(conv.monto)} de cobranza de cuentas corrientes (Neoform, CEMEI, directores y colaboradores), que no entra en estas formas de pago.`:'';
+  const notaConv=(conv&&conv.n)?` Aparte, en Otros convenios: ${formatARS(conv.monto)} (cobranza de cuentas corrientes de Neoform, CEMEI, directores y colaboradores, más gift cards y vouchers de afiliados), que no entra en estas formas de pago.`:'';
   const nota=`<div style="font-size:12.5px;color:var(--muted);margin-top:14px;padding-top:12px;border-top:1px solid var(--line);">${notaTxt}${notaConv}</div>`;
   panel.innerHTML=`<div class="block-title">Farmacia — cobrado del período, por forma de pago</div>
     <div class="fp-card"><div class="fp-grid">${celdas}${celda('Cobrado total (caja)',total,true)}</div>${nota}</div>`;
