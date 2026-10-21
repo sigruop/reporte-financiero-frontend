@@ -722,8 +722,19 @@ const FARM_RAW={
 };
 const FARM=Object.fromEntries(Object.entries(FARM_RAW).map(([k,v])=>[normT(k),v]));
 
-function clasificarEgreso(p){
+// Empresa a la que se imputa un pago. Salud Integral (SIG) carga en su propio sistema algunos pagos que en
+// realidad son de la Farmacia: el rubro "SUELDOS DE SAMED" (haberes y honorarios del personal de la farmacia).
+// Se imputan a Farmacia (decisión de Gustavo) y se clasifican con la jerarquía de Farmacia.
+// El rubro "SAMED" de SIG (compra de medicamentos a la farmacia) NO entra acá: sigue siendo un gasto de SIG.
+const RUBROS_SIG_DE_FARMACIA=new Set(['SUELDOS DE SAMED']);
+function empresaEgreso(p){
   const key=empresaKey(p.origen,p.unidad);
+  if(key==='SIG' && RUBROS_SIG_DE_FARMACIA.has(normT(p.rubro))) return 'FARMACIA';
+  return key;
+}
+
+function clasificarEgreso(p){
+  const key=empresaEgreso(p);
   const n=noopEgreso(p,key);
   if(n) return {tipo:'NOOP',cat:n.cat,sub:n.sub,det:n.det,o:n.o};
   if(key==='FARMACIA'){
@@ -801,7 +812,7 @@ async function consultarEgresos(){
       if(p.categoria==='__INTERNO__') return false;
       return true;
     });
-    egClas=egBrutos.map(p=>({p,k:clasificarEgreso(p),e:empresaKey(p.origen,p.unidad)}));
+    egClas=egBrutos.map(p=>({p,k:clasificarEgreso(p),e:empresaEgreso(p)}));
     egOk=true;
     estado.textContent=`${data.total} pagos encontrados.`;
     document.getElementById('stampFecha').textContent=`Actualizado: ${new Date().toLocaleString('es-AR')}`;
@@ -1080,7 +1091,7 @@ function renderDetalle(ing,egr){
   document.getElementById('eg-tablaN').textContent=`(${pg.length})`;
   document.getElementById('eg-tbody').innerHTML=pg.slice(0,LIM_FILAS).map(x=>{ const p=x.p; return `<tr>
     <td>${formatFecha(p.fechaCobro)}</td>
-    <td>${badgeEmpresa(p.origen,p.unidad)}</td>
+    <td>${badgeKey(x.e)}</td>
     <td>${pillTipo(x.k)}</td>
     <td>${rubroTxt(x.k)}</td>
     <td>${esc(p.proveedor)}</td>
@@ -1113,6 +1124,7 @@ function exportarEgresosCSV(){
     {header:'Fecha',get:x=>formatFecha(x.p.fechaCobro)},
     {header:'Empresa',get:x=>x.p.origen||''},
     {header:'Unidad',get:x=>x.p.unidad||''},
+    {header:'Imputado a',get:x=>etiquetaEmp(x.e)},
     {header:'Tipo',get:x=>x.k.tipo==='OP'?'Operativo':'No operativo'},
     {header:'Rubro',get:x=>bonito(x.k.cat)},
     {header:'Subrubro',get:x=>bonito(x.k.sub||'')},
