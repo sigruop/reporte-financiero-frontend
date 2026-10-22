@@ -568,12 +568,13 @@ function categoriaExcel(c){
   if(c.tipoConcepto==='Medicamentos') return {cat:'Hospital de Día',sub:null};
   if(c.tipoConcepto==='Adicionales / Plus') return {cat:'Plus',sub:null};
   if(c.tipoConcepto==='Seña / Descartable'){
-    // Solo clasificar como Seña/Descartable si el concepto realmente lo es.
-    // CEMEI Odontología a veces le pone este tipoConcepto a consultas con código de prestación
-    // (ej. "0504 CONSULTA PREVENTIVA...") — esas van a Particular, no acá.
-    const con=normT(c.concepto||'');
-    if(con.startsWith('SEÑA') || con.includes('DESCARTABLE')) return {cat:'Seña/Descartable',sub:null};
-    // Si el concepto no coincide: cae al bloque siguiente (Particular u Origen)
+    // CEMEI Odontología a veces pone tipoConcepto='Seña / Descartable' a consultas
+    // con código de prestación numérico (ej. "0504 CONSULTA PREVENTIVA...") — esas van a Particular.
+    // Señas reales: empiezan con "Seña". Descartables: contienen "DESCARTABLE".
+    // Si el concepto empieza con dígito Y no contiene "descartable" → es una prestación mal etiquetada.
+    if(/^\d/.test(c.concepto||'') && !/(descartable)/i.test(c.concepto||''))
+      return {cat:'Particular',sub:null};
+    return {cat:'Seña/Descartable',sub:null};
   }
   // Solo es "Particular" cuando el origen es Particulares o no viene; cualquier otro origen explícito
   // (ej. "Manual") queda separado y visible en vez de mezclarse.
