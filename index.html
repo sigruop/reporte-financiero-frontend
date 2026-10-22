@@ -567,7 +567,14 @@ function categoriaExcel(c){
   if(c.tipoConcepto==='Prefacturas' || (c.origenFactura||'').toLowerCase().includes('prefactura') || conPref.startsWith('PREF ') || conPref.startsWith('PREF N')) return {cat:'ACLISA',sub:c.obraSocial||null};
   if(c.tipoConcepto==='Medicamentos') return {cat:'Hospital de Día',sub:null};
   if(c.tipoConcepto==='Adicionales / Plus') return {cat:'Plus',sub:null};
-  if(c.tipoConcepto==='Seña / Descartable') return {cat:'Seña/Descartable',sub:null};
+  if(c.tipoConcepto==='Seña / Descartable'){
+    // Solo clasificar como Seña/Descartable si el concepto realmente lo es.
+    // CEMEI Odontología a veces le pone este tipoConcepto a consultas con código de prestación
+    // (ej. "0504 CONSULTA PREVENTIVA...") — esas van a Particular, no acá.
+    const con=normT(c.concepto||'');
+    if(con.startsWith('SEÑA') || con.includes('DESCARTABLE')) return {cat:'Seña/Descartable',sub:null};
+    // Si el concepto no coincide: cae al bloque siguiente (Particular u Origen)
+  }
   // Solo es "Particular" cuando el origen es Particulares o no viene; cualquier otro origen explícito
   // (ej. "Manual") queda separado y visible en vez de mezclarse.
   const og=(c.origenFactura||'').toLowerCase();
