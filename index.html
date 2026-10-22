@@ -178,6 +178,7 @@
   .badge.sig{background:var(--sig-soft);color:var(--sig);}
   .badge.cemei{background:var(--cemei-soft);color:var(--cemei);}
   .badge.neo{background:var(--neo-soft);color:var(--neo);}
+  .badge.odont{background:#F3EAF7;color:#7B2FA0;}
   .badge.laboral{background:var(--laboral-soft);color:var(--laboral);}
   .badge.farmacia{background:var(--farm-soft);color:var(--farm);}
   .pill{font-size:12.5px;font-weight:600;color:var(--muted);background:#F3F5F9;border:1px solid var(--line);padding:3px 10px;border-radius:12px;display:inline-block;white-space:nowrap;}
@@ -227,7 +228,9 @@
       <select id="flt-empresa">
         <option value="">Todas las empresas</option>
         <option value="SIG">Salud Integral (SIG)</option>
-        <option value="CEMEI">SIG Clínica (CEMEI)</option>
+        <option value="CEMEI_ALL">SIG Clínica (todas)</option>
+        <option value="CEMEI">SIG Clínica — Consultorios</option>
+        <option value="ODONT">SIG Clínica — Odontología</option>
         <option value="LABORAL">Medicina Laboral</option>
         <option value="NEO">Neoform</option>
         <option value="FARMACIA">Farmacia</option>
@@ -369,8 +372,8 @@ function descargarCSV(filas, columnas, nombreBase){
 // Importante: esto es DISTINTO del "Convenio Directo" homónimo (cuando CEMEI Consultorios factura
 // a un tercero llamado "Medicina Laboral" como cliente) — ese caso nunca trae sucursal="Medicina
 // Laboral" (el backend ya los separa, ver detectarConvenioDirecto en server.js), así que no hay
-// colisión acá. CEMEI Consultorios y CEMEI Odontología SÍ tienen que seguir sumando juntas bajo
-// "CEMEI": no se tocan, siguen cayendo acá por origen nomás, igual que siempre.
+// colisión acá. CEMEI Consultorios y CEMEI Odontología se distinguen por subUnidad: si contiene
+// "ODONTOLOG" va a clave 'ODONT', si no va a 'CEMEI' (consultorios).
 function empresaKey(origen, subUnidad){
   const su = subUnidad ? String(subUnidad).toUpperCase() : '';
   if(su.includes('LABORAL')) return 'LABORAL';
@@ -381,6 +384,7 @@ function empresaKey(origen, subUnidad){
   // aparecía como un grupo "FARMACIA" más del desglose por sucursal, en vez de ir al mismo total de
   // Farmacia de arriba.
   if(su.includes('FARMACIA')) return 'FARMACIA';
+  if(su.includes('ODONTOLOG')) return 'ODONT';
   if(!origen) return 'SIG';
   if(origen.includes('CEMEI')) return 'CEMEI';
   if(origen.includes('Neoform')) return 'NEO';
@@ -389,8 +393,7 @@ function empresaKey(origen, subUnidad){
 }
 function badgeEmpresa(origen, subUnidad){
   const k=empresaKey(origen, subUnidad);
-  const etiqueta=k==='CEMEI'?'CEMEI':k==='LABORAL'?'Laboral':k==='NEO'?'NEO':k==='FARMACIA'?'Farmacia':'SIG';
-  return `<span class="badge ${k.toLowerCase()}">${etiqueta}</span>`;
+  return `<span class="badge ${k.toLowerCase()}">${etiquetaEmp(k)}</span>`;
 }
 
 // Render (plan free) apaga el backend tras ~15 min sin tráfico. El primer pedido del día lo
@@ -557,8 +560,11 @@ const CAT_ING_NOOP='Depósitos y otros ingresos';
 function categoriaExcel(c){
   if(['Salud Integral','UTA','Medicina Laboral','OSPES'].includes(c.tipoConcepto)) return {cat:'Convenios Directos',sub:c.tipoConcepto};
   // Dentro de "ACLISA" se desglosa por la obra social real (AMP, IASEP, OSMATA, SPF, Swiss Medical…),
-  // extraída del concepto en el backend.
-  if((c.origenFactura||'').toLowerCase().includes('prefactura')) return {cat:'ACLISA',sub:c.obraSocial||null};
+  // extraída del concepto en el backend. Se detecta por tipoConcepto='Prefacturas' (que el backend asigna
+  // cuando el concepto empieza con "Pref"), por origenFactura que incluye "prefactura", o directamente
+  // por el patrón "Pref N..." en el concepto (p.ej. "Pref Nº 14644 - OSPRERA Periodo 2/2026").
+  const conPref=normT(c.concepto||'');
+  if(c.tipoConcepto==='Prefacturas' || (c.origenFactura||'').toLowerCase().includes('prefactura') || conPref.startsWith('PREF ') || conPref.startsWith('PREF N')) return {cat:'ACLISA',sub:c.obraSocial||null};
   if(c.tipoConcepto==='Medicamentos') return {cat:'Hospital de Día',sub:null};
   if(c.tipoConcepto==='Adicionales / Plus') return {cat:'Plus',sub:null};
   if(c.tipoConcepto==='Seña / Descartable') return {cat:'Seña/Descartable',sub:null};
@@ -842,7 +848,15 @@ async function consultarIngresos(){
     const data=await fetchConDespertar(`${backend}/api/cobros?desde=${desde}&hasta=${hasta||desde}`, estado);
     const descartados=data.cobros.filter(esEfectivoVentasFarmacia);
     ingExcl={n:descartados.length,monto:descartados.reduce((a,c)=>a+(c.monto||0),0)};
-    ingBrutos=data.cobros.filter(c=>!esEfectivoVentasFarmacia(c));
+    // Se excluyen las transferencias internas entre cuentas propias (igual que en egresos)
+    ingBrutos=data.cobros.filter(c=>{
+      if(esEfectivoVentasFarmacia(c)) return false;
+      const con=normT(c.concepto||'');
+      const cli=normT(c.cliente||'');
+      if(con.includes('MOVIMIENTO ENTRE CUENTAS')) return false;
+      if(cli.includes('MOVIMIENTO ENTRE CUENTAS')) return false;
+      return true;
+    });
     ingClas=ingBrutos.map(c=>({c,k:clasificarIngreso(c),e:empresaKey(c.empresa,c.sucursal)}));
     ingFarmaciaDeuda=data.farmaciaDeuda||{cobertura:0,ctaCtePendiente:0,meses:[]};
     ingOk=true;
@@ -862,7 +876,7 @@ async function consultarIngresos(){
 const pctTxt=v=>v.toLocaleString('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
 const signoCls=v=>v>=0?'pos-txt':'neg-txt';
 const sumaPor=(arr,f)=>arr.reduce((a,x)=>a+(f(x)||0),0);
-function etiquetaEmp(k){ return k==='CEMEI'?'CEMEI':k==='LABORAL'?'Laboral':k==='NEO'?'NEO':k==='FARMACIA'?'Farmacia':'SIG'; }
+function etiquetaEmp(k){ return k==='CEMEI'?'Consultorios':k==='ODONT'?'Odontología':k==='LABORAL'?'Laboral':k==='NEO'?'NEO':k==='FARMACIA'?'Farmacia':'SIG'; }
 const badgeKey=k=>`<span class="badge ${k.toLowerCase()}">${etiquetaEmp(k)}</span>`;
 const rubroTxt=k=>esc(bonito(k.cat))+(k.sub?` <span style="color:var(--muted)">›</span> ${esc(bonito(k.sub))}`:'');
 
@@ -885,6 +899,7 @@ function filaArbol(n,lvl,id,parent,pref,totalRef,emp){
 
 function bloqueArbol(o){
   const emp=document.getElementById('flt-empresa').value;
+  const matchEmp=e=>!emp||(emp==='CEMEI_ALL'?(e==='CEMEI'||e==='ODONT'):e===emp);
   const {pref,clase,titulo,raiz,totalLbl,unidad}=o;
   let filas='';
   hijosDe(raiz).forEach((n1,i)=>{
@@ -918,6 +933,23 @@ function bloqueArbol(o){
   </div>`;
 }
 
+// Cuando se elige "SIG Clínica (todas)", muestra Consultorios y Odontología como dos bloques
+// separados dentro de la misma sección, seguidos de un total combinado.
+function bloqueArbolDoble({clase,titulo,itemsCEMEI,itemsODONT,getMonto,getEmp,totalLbl,unidad,pref}){
+  const raizC=armarArbol(itemsCEMEI,getMonto,getEmp);
+  const raizO=armarArbol(itemsODONT,getMonto,getEmp);
+  const totalComb=raizC.total+raizO.total;
+  const countComb=raizC.count+raizO.count;
+  return bloqueArbol({pref:pref+'-c',clase,titulo:'Consultorios',raiz:raizC,totalLbl:'Total consultorios',unidad})+
+         bloqueArbol({pref:pref+'-o',clase,titulo:'Odontología',raiz:raizO,totalLbl:'Total odontología',unidad})+
+         `<div class="blk ${clase}" style="border-top:2px solid var(--border);margin-top:-4px;border-radius:0 0 14px 14px">
+           <div class="blk-h" style="background:rgba(0,0,0,.03)">
+             <div><div class="blk-t">${titulo} — total</div><div class="blk-s">${countComb} ${unidad} en total</div></div>
+             <div class="blk-total">${formatARS(totalComb)}</div>
+           </div>
+         </div>`;
+}
+
 function toggleNodo(id){
   const tr=document.querySelector(`tr[data-id="${id}"]`); if(!tr) return;
   const abre=!tr.classList.contains('open');
@@ -943,8 +975,9 @@ function renderReporte(){
   if(!ingOk && !egOk){ rep.style.display='none'; vac.style.display=''; return; }
   vac.style.display='none'; rep.style.display='';
   const emp=document.getElementById('flt-empresa').value;
-  const ing=ingClas.filter(x=>!emp||x.e===emp);
-  const egr=egClas.filter(x=>!emp||x.e===emp);
+  const matchEmp=e=>!emp||(emp==='CEMEI_ALL'?(e==='CEMEI'||e==='ODONT'):e===emp);
+  const ing=ingClas.filter(x=>matchEmp(x.e));
+  const egr=egClas.filter(x=>matchEmp(x.e));
   const ingOp=ing.filter(x=>x.k.tipo==='OP'),   ingNo=ing.filter(x=>x.k.tipo==='NOOP');
   const egOp =egr.filter(x=>x.k.tipo==='OP'),   egNo =egr.filter(x=>x.k.tipo==='NOOP');
   const mI=x=>x.c.monto, mE=x=>x.p.importe, eK=x=>x.e;
@@ -952,7 +985,7 @@ function renderReporte(){
   const aIngNo=armarArbol(ingNo,mI,eK), aEgNo=armarArbol(egNo,mE,eK);
   const tIO=aIngOp.total, tEO=aEgOp.total, tIN=aIngNo.total, tEN=aEgNo.total;
   const rOp=tIO-tEO, rNo=tIN-tEN, rTot=rOp+rNo;
-  const nombreEmp=emp?document.querySelector(`#flt-empresa option[value="${emp}"]`).textContent:'Todas las empresas';
+  const nombreEmp=emp?document.querySelector(`#flt-empresa option[value="${emp}"]`)?.textContent??'Todas las empresas':'Todas las empresas';
   const periodo=`${formatFecha(document.getElementById('flt-desde').value)} al ${formatFecha(document.getElementById('flt-hasta').value)}`;
 
   // Si una de las dos consultas falló, el resultado sería engañoso: se avisa arriba del todo.
@@ -980,11 +1013,20 @@ function renderReporte(){
       ${kRow('Resultado operativo',rOp,signoCls(rOp))}${kRow('Resultado no operativo',rNo,signoCls(rNo))}${kBig('Resultado total',rTot)}
     </div>`;
 
+  // Helper: cuando se filtra "SIG Clínica (todas)" separa Consultorios y Odontología en dos bloques.
+  const isCEMEIAll = emp === 'CEMEI_ALL';
+  const bloqueIng=(pref,titulo,raiz,items,totalLbl)=>isCEMEIAll
+    ? bloqueArbolDoble({clase:'ing',titulo,itemsCEMEI:items.filter(x=>x.e==='CEMEI'),itemsODONT:items.filter(x=>x.e==='ODONT'),getMonto:mI,getEmp:eK,totalLbl,unidad:'cobros',pref})
+    : bloqueArbol({pref,clase:'ing',titulo,raiz,totalLbl,unidad:'cobros'});
+  const bloqueEgr=(pref,titulo,raiz,items,totalLbl)=>isCEMEIAll
+    ? bloqueArbolDoble({clase:'egr',titulo,itemsCEMEI:items.filter(x=>x.e==='CEMEI'),itemsODONT:items.filter(x=>x.e==='ODONT'),getMonto:mE,getEmp:eK,totalLbl,unidad:'pagos',pref})
+    : bloqueArbol({pref,clase:'egr',titulo,raiz,totalLbl,unidad:'pagos'});
+
   // ── Operativo ──
   document.getElementById('sec-op').innerHTML=
     banda('op','Operativo','Lo que genera y gasta la actividad · '+esc(nombreEmp)+' · '+periodo)+
-    bloqueArbol({pref:'oi',clase:'ing',titulo:'Ingresos operativos',raiz:aIngOp,totalLbl:'Total ingresos operativos',unidad:'cobros'})+
-    bloqueArbol({pref:'oe',clase:'egr',titulo:'Egresos operativos',raiz:aEgOp,totalLbl:'Total egresos operativos',unidad:'pagos'})+
+    bloqueIng('oi','Ingresos operativos',aIngOp,ingOp,'Total ingresos operativos')+
+    bloqueEgr('oe','Egresos operativos',aEgOp,egOp,'Total egresos operativos')+
     franja('Resultado operativo','Ingresos operativos menos egresos operativos',rOp);
 
   // ── No operativo ──
@@ -996,8 +1038,12 @@ function renderReporte(){
   ].join('');
   document.getElementById('sec-noop').innerHTML=
     banda('noop','No operativo','Movimientos financieros: no son ni venta ni costo de la actividad · '+esc(nombreEmp)+' · '+periodo)+
-    bloqueArbol({pref:'ni',clase:'noop',titulo:'Depósitos y otros ingresos',raiz:aIngNo,totalLbl:'Total ingresos no operativos',unidad:'cobros'})+
-    bloqueArbol({pref:'ne',clase:'noop',titulo:'Egresos no operativos',raiz:aEgNo,totalLbl:'Total egresos no operativos',unidad:'pagos'})+
+    (isCEMEIAll
+      ? bloqueArbolDoble({clase:'noop',titulo:'Depósitos y otros ingresos',itemsCEMEI:ingNo.filter(x=>x.e==='CEMEI'),itemsODONT:ingNo.filter(x=>x.e==='ODONT'),getMonto:mI,getEmp:eK,totalLbl:'Total ingresos no operativos',unidad:'cobros',pref:'ni'})
+      : bloqueArbol({pref:'ni',clase:'noop',titulo:'Depósitos y otros ingresos',raiz:aIngNo,totalLbl:'Total ingresos no operativos',unidad:'cobros'}))+
+    (isCEMEIAll
+      ? bloqueArbolDoble({clase:'noop',titulo:'Egresos no operativos',itemsCEMEI:egNo.filter(x=>x.e==='CEMEI'),itemsODONT:egNo.filter(x=>x.e==='ODONT'),getMonto:mE,getEmp:eK,totalLbl:'Total egresos no operativos',unidad:'pagos',pref:'ne'})
+      : bloqueArbol({pref:'ne',clase:'noop',titulo:'Egresos no operativos',raiz:aEgNo,totalLbl:'Total egresos no operativos',unidad:'pagos'}))+
     franja('Resultado no operativo','Ingresos no operativos menos egresos no operativos',rNo)+
     `<details class="nota"><summary>¿Qué se considera no operativo?</summary><ul>${notas}</ul></details>`;
 
@@ -1119,7 +1165,8 @@ function renderDetalle(ing,egr){
 // ── Exportaciones (CSV que abre Excel): incluyen Tipo y Rubro/Subrubro/Detalle ya clasificados ──
 function exportarEgresosCSV(){
   const emp=document.getElementById('flt-empresa').value;
-  const filas=egClas.filter(x=>!emp||x.e===emp);
+  const matchEmp=e=>!emp||(emp==='CEMEI_ALL'?(e==='CEMEI'||e==='ODONT'):e===emp);
+  const filas=egClas.filter(x=>matchEmp(x.e));
   descargarCSV(filas,[
     {header:'Fecha',get:x=>formatFecha(x.p.fechaCobro)},
     {header:'Empresa',get:x=>x.p.origen||''},
@@ -1140,7 +1187,8 @@ function exportarEgresosCSV(){
 }
 function exportarIngresosCSV(){
   const emp=document.getElementById('flt-empresa').value;
-  const filas=ingClas.filter(x=>!emp||x.e===emp);
+  const matchEmp=e=>!emp||(emp==='CEMEI_ALL'?(e==='CEMEI'||e==='ODONT'):e===emp);
+  const filas=ingClas.filter(x=>matchEmp(x.e));
   descargarCSV(filas,[
     {header:'Fecha Cobro',get:x=>formatFecha(x.c.fechaCobro)},
     {header:'Empresa',get:x=>x.c.empresa||''},
