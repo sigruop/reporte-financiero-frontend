@@ -558,7 +558,7 @@ const ING_NOOP_TIPOS=['Otros Ingresos','Efectivo Fcia San Lorenzo (SAMED)','Fact
 const CAT_ING_NOOP='Depósitos y otros ingresos';
 
 function categoriaExcel(c){
-  if(['Salud Integral','UTA','Medicina Laboral','OSPES'].includes(c.tipoConcepto)) return {cat:'Convenios Directos',sub:c.tipoConcepto};
+  if(['Salud Integral','UTA','Medicina Laboral','OSPES'].includes(c.tipoConcepto)) return {cat:'Convenios Directos',sub:c.tipoConcepto,det:c.cliente||null};
   // Dentro de "ACLISA" se desglosa por la obra social real (AMP, IASEP, OSMATA, SPF, Swiss Medical…),
   // extraída del concepto en el backend. Se detecta por tipoConcepto='Prefacturas' (que el backend asigna
   // cuando el concepto empieza con "Pref"), por origenFactura que incluye "prefactura", o directamente
@@ -617,10 +617,10 @@ function clasificarIngreso(c){
   // Salud Integral: tipo de factura (Capitación, Pagos de cuotas, Venta de órdenes, Fiscalización)
   if(tf) return {tipo:'OP',cat:tf==='Venta de ordenes'?'Venta de órdenes':tf,sub:c.subTipo||null,det:null,o:50};
   // CEMEI / Neoform / Medicina Laboral
-  const {cat,sub}=categoriaExcel(c);
+  const {cat,sub,det:detCat=null}=categoriaExcel(c);
   let s=sub;
   if(!s && !['ACLISA','Convenios Directos'].includes(cat)) s=(key==='NEO'?'Neoform':(c.sucursal||null));
-  return {tipo:'OP',cat,sub:s,det:null,o:50};
+  return {tipo:'OP',cat,sub:s,det:detCat,o:50};
 }
 
 // ── Egresos ──────────────────────────────────────────
