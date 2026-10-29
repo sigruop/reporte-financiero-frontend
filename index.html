@@ -558,6 +558,11 @@ const ING_NOOP_TIPOS=['Otros Ingresos','Efectivo Fcia San Lorenzo (SAMED)','Fact
 const CAT_ING_NOOP='Depósitos y otros ingresos';
 
 function categoriaExcel(c){
+  // Facturas manuales emitidas directamente a una OS de Convenio Directo, sin tipoConcepto correcto
+  // (el operador las crea en CEMEI sin asignar obra social, quedan con tipoConcepto='Particular').
+  // El cliente en ese caso es la OS misma, no un paciente individual, lo que permite identificarlas.
+  const clientN=normT(c.cliente||'');
+  if(clientN.includes('CONDUCTORES DE TRANSPORTE')) return {cat:'Convenios Directos',sub:'UTA',det:c.cliente||null};
   if(['Salud Integral','UTA','Medicina Laboral','OSPES'].includes(c.tipoConcepto)) return {cat:'Convenios Directos',sub:c.tipoConcepto,det:c.cliente||null};
   // Dentro de "ACLISA" se desglosa por la obra social real (AMP, IASEP, OSMATA, SPF, Swiss Medical…),
   // extraída del concepto en el backend. Se detecta por tipoConcepto='Prefacturas' (que el backend asigna
