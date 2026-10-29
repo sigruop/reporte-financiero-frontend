@@ -581,6 +581,13 @@ function categoriaExcel(c){
       return {cat:'Particular',sub:null};
     return {cat:'Seña/Descartable',sub:null};
   }
+  // Coseguros: cobros de 420101 CONSULTA MEDICA a precio reducido ($10 000 ó $20 000,01).
+  // Son la parte que paga el paciente de obra social al momento de la consulta;
+  // el resto lo cobra la OS por prefactura. Se distinguen de la consulta particular
+  // (≥ $40 000) por el monto ≤ $25 000.
+  const conN=normT(c.concepto||'');
+  if(conN.startsWith('420101') && (c.monto||0)<=25000)
+    return {cat:'Coseguros',sub:null};
   // Solo es "Particular" cuando el origen es Particulares o no viene; cualquier otro origen explícito
   // (ej. "Manual") queda separado y visible en vez de mezclarse.
   const og=(c.origenFactura||'').toLowerCase();
