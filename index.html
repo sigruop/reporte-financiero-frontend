@@ -169,6 +169,13 @@
   table.pagos-tabla tbody tr:hover{background:#F6F8FC;}
   td.num,th.num{text-align:right;} td.num{font-weight:600;white-space:nowrap;}
   td.small{color:var(--muted);font-size:13px;max-width:260px;}
+  table.mtz{width:100%;border-collapse:collapse;background:#fff;}
+  table.mtz th,table.mtz td{padding:9px 12px;border-bottom:1px solid var(--line2);font-size:13.5px;white-space:nowrap;text-align:right;}
+  table.mtz th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;border-bottom:2px solid var(--ink);background:#fff;}
+  table.mtz th:first-child,table.mtz td:first-child{text-align:left;position:sticky;left:0;background:#fff;white-space:normal;min-width:190px;font-weight:600;}
+  table.mtz td.tt,table.mtz th.tt{font-weight:800;background:#F7F9FC;}
+  table.mtz tr.total-row td{font-weight:800;border-top:2px solid var(--ink);background:#F7F9FC;}
+  table.mtz td.z{color:#B5C0D0;font-weight:400;}
   .nota-lim{font-size:12.5px;color:var(--muted);padding:8px 4px 0;}
   .cat-tabla{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;}
   .cat-tabla th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;padding:12px 14px;border-bottom:2px solid var(--ink);}
@@ -213,6 +220,7 @@
   <a href="#sec-op">Operativo</a>
   <a href="#sec-noop">No operativo</a>
   <a href="#sec-total">Resultado total</a>
+  <a href="#sec-neo">Devengado y deudas (Neoform)</a>
   <a href="#sec-graf">Gráficos</a>
   <a href="#sec-det">Detalle</a>
 </div></nav>
@@ -245,6 +253,7 @@
   <div class="estados">
     <div class="estado" id="ing-estado"></div>
     <div class="estado" id="eg-estado"></div>
+    <div class="estado" id="cmp-estado"></div>
   </div>
 
   <!-- Carga de ventas de Farmacia (solo visible con "Todas" o "Farmacia") -->
@@ -266,6 +275,7 @@
     <div id="sec-op"></div>
     <div id="sec-noop"></div>
     <div id="sec-total"></div>
+    <div id="sec-neo"></div>
 
     <div id="sec-graf">
       <div class="band op" style="margin-top:46px"><div><div class="band-t">Gráficos</div><div class="band-s">Rubros operativos, de mayor a menor</div></div></div>
@@ -318,6 +328,7 @@ let ingClas=[], egClas=[];              // lo mismo, ya clasificado: [{c|p, k:{t
 let ingFarmaciaDeuda={cobertura:0,ctaCtePendiente:0,meses:[]};
 let ingExcl={n:0,monto:0};              // cobros que se descartan al cargar (rendiciones de caja de Farmacia)
 let ingOk=false, egOk=false, enLote=false;
+let comprasNeo=[], comprasOk=false;     // compras de Neoform (pagas o no): [{c, k}] — para Devengado y Deudas
 
 const hoyISO=()=>new Date().toISOString().slice(0,10);
 const primerDiaMes=()=>{ const d=new Date(); return new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10); };
@@ -812,9 +823,20 @@ function hijosDe(n){
 // ══════════════════════════════════════════════════════
 // Ingresos y egresos son dos endpoints distintos del backend; un solo botón "Consultar" dispara los dos
 // y el reporte se arma una sola vez, cuando terminaron ambos.
+// Transferencias entre cuentas propias: no son gasto. Además del rubro "MOVIMIENTO ENTRE CUENTAS" y de los
+// conceptos "MOV DESDE ... A CTA/BCO", Neoform carga el pase de plata al BBVA para pagar sueldos como
+// "MOV. AL BBVA PARA PAGO DE HABERES" con rubro de sueldos: si no se saca, los haberes se cuentan dos veces
+// (el pase + el pago de los haberes). En la planilla de Gustavo esa fila está marcada "no va en el informe".
+function esMovInterno(rubro,concepto){
+  const r=normT(rubro), c=normT(concepto);
+  if(r.includes('MOVIMIENTO ENTRE CUENTAS')) return true;
+  if(c.includes('MOV DESDE')&&(c.includes('A CTA')||c.includes('BCO'))) return true;
+  return /^MOV(IMIENTO)? (AL?|HACIA) /.test(c) && /\b(BBVA|BANCO|BCO|CTA|CUENTA)\b/.test(c);
+}
+
 async function consultarTodo(){
-  ingOk=false; egOk=false; enLote=true;
-  try{ await Promise.all([consultarEgresos(), consultarIngresos()]); }
+  ingOk=false; egOk=false; comprasOk=false; enLote=true;
+  try{ await Promise.all([consultarEgresos(), consultarIngresos(), consultarCompras()]); }
   finally{ enLote=false; }
   renderReporte();
 }
@@ -831,10 +853,7 @@ async function consultarEgresos(){
     // Se excluyen las transferencias internas entre cuentas propias (por rubro Y por concepto, para no
     // depender de la clasificación del backend).
     egBrutos=data.pagos.filter(p=>{
-      const r=(p.rubro||'').toUpperCase();
-      const c=(p.concepto||'').toUpperCase();
-      if(r.includes('MOVIMIENTO ENTRE CUENTAS')) return false;
-      if(c.includes('MOV DESDE')&&(c.includes('A CTA')||c.includes('BCO'))) return false;
+      if(esMovInterno(p.rubro,p.concepto)) return false;
       if(p.categoria==='__INTERNO__') return false;
       return true;
     });
@@ -847,6 +866,30 @@ async function consultarEgresos(){
     egOk=false;
     estado.className='estado error';
     estado.textContent=`Error en egresos: ${err.message}`;
+  }
+}
+
+// Compras de Neoform (pagas o no). Se pide todo el historial hasta la fecha "hasta": la deuda vieja sigue
+// siendo deuda. Si falla no rompe el resto del reporte: solo no se muestra la sección de Neoform.
+async function consultarCompras(){
+  const desde=document.getElementById('flt-desde').value;
+  const hasta=document.getElementById('flt-hasta').value||desde;
+  const backend=document.getElementById('flt-backend').value.trim().replace(/\/$/,'');
+  const estado=document.getElementById('cmp-estado');
+  if(!desde) return;
+  estado.className='estado'; estado.textContent='Consultando compras de Neoform…';
+  try{
+    const data=await fetchConDespertar(`${backend}/api/compras?desde=2020-01-01&hasta=${hasta}`, estado);
+    if(data.errores && !(data.compras||[]).length) throw new Error(data.errores.join(' · '));
+    comprasNeo=(data.compras||[]).filter(c=>c.fecha && !esMovInterno(c.rubro,c.concepto))
+      .map(c=>({c,k:clasificarEgreso({rubro:c.rubro,concepto:c.concepto,proveedor:c.proveedor,categoria:c.categoria,subcategoria:c.subcategoria,detalle:c.detalle,origen:c.origen,unidad:null})}));
+    comprasOk=true;
+    estado.textContent=`${comprasNeo.length} compras de Neoform.`;
+    if(!enLote) renderReporte();
+  }catch(err){
+    comprasOk=false;
+    estado.className='estado error';
+    estado.textContent=`Error en compras de Neoform: ${err.message}`;
   }
 }
 
@@ -1078,8 +1121,105 @@ function renderReporte(){
       <div class="eq-box tot"><small>Resultado total</small><b class="${signoCls(rTot)}">${formatARS(rTot)}</b></div>
     </div>`;
 
+  renderNeoDevengado(emp);
   dibujarGraficos(aIngOp,aEgOp);
   renderDetalle(ing,egr);
+}
+
+// ══════════════════════════════════════════════════════
+// NEOFORM: DEVENGADO Y DEUDAS PENDIENTES
+// ══════════════════════════════════════════════════════
+// Sale de las compras cargadas en el sistema de Neoform (/api/compras), estén pagas o no:
+//  · Devengado = compras con fecha dentro del período (la fecha de la compra es el mes en que
+//    corresponde pagarla), por su total. Se compara contra los ingresos operativos del período.
+//  · Deudas    = compras con fecha hasta el "hasta" del filtro que siguen con saldo sin pagar.
+// Las compras no operativas (devolución de préstamos) no son gasto devengado: se muestran aparte en deudas.
+const MESES_CORTOS=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const etiquetaMes=am=>{ const [a,m]=am.split('-'); return `${MESES_CORTOS[+m-1]} ${a.slice(2)}`; };
+const rubroCompra=x=>x.k.det||x.k.sub||x.k.cat||'Sin rubro';
+function renderNeoDevengado(emp){
+  const cont=document.getElementById('sec-neo');
+  if(emp && emp!=='NEO'){ cont.innerHTML=''; return; }
+  const desde=document.getElementById('flt-desde').value, hasta=document.getElementById('flt-hasta').value||desde;
+  const cab=banda('op','Neoform · Devengado y deudas','Lo que correspondía pagar en el período, se haya pagado o no, y lo que sigue pendiente');
+  if(!comprasOk){ cont.innerHTML=cab+`<div class="aviso">No se pudieron cargar las compras de Neoform: esta sección no se puede armar. Volvé a tocar Consultar.</div>`; return; }
+
+  // ── Devengado del período ──
+  const delPer=comprasNeo.filter(x=>x.k.tipo==='OP' && x.c.fecha>=desde && x.c.fecha<=hasta);
+  const dev=sumaPor(delPer,x=>x.c.total), pag=sumaPor(delPer,x=>x.c.pagado), pen=sumaPor(delPer,x=>x.c.saldo);
+  const ingNeo=ingOk?sumaPor(ingClas.filter(x=>x.e==='NEO'&&x.k.tipo==='OP'),x=>x.c.monto):0;
+  const resDev=ingNeo-dev;
+  const grupos=new Map();
+  delPer.forEach(x=>{
+    const key=normT(x.k.cat)+'|'+normT(rubroCompra(x));
+    let g=grupos.get(key); if(!g){ g={cat:x.k.cat,o:x.k.o,rubro:rubroCompra(x),n:0,dev:0,pag:0,pen:0}; grupos.set(key,g); }
+    g.n++; g.dev+=x.c.total; g.pag+=x.c.pagado; g.pen+=x.c.saldo;
+  });
+  const filasDev=[...grupos.values()].sort((a,b)=>(a.o-b.o)||(b.dev-a.dev)).map(g=>`<tr>
+      <td>${esc(bonito(g.rubro))}<div style="font-size:12px;color:var(--muted)">${esc(bonito(g.cat))}</div></td>
+      <td class="num">${g.n}</td><td class="num">${formatARS(g.dev)}</td><td class="num">${formatARS(g.pag)}</td>
+      <td class="num ${g.pen>0.5?'neg-txt':''}" style="font-weight:${g.pen>0.5?800:400}">${formatARS(g.pen)}</td></tr>`).join('');
+  const kRow=(l,v,cls)=>`<div class="kpi-row"><span>${l}</span><b class="${cls||''}">${formatARS(v)}</b></div>`;
+  const htmlDev=`
+    <div class="kpis" style="margin-bottom:20px">
+      <div class="kpi"><div class="kpi-t">Ingresos del período</div>
+        ${kRow('Cobrado sin descontar adelantos',ingNeo,'pos-txt')}
+        <div style="font-size:12.5px;color:var(--muted);margin-top:6px">${ingOk?'Ingresos operativos de Neoform (liquidaciones de obras sociales y particulares).':'No se pudieron cargar los ingresos.'}</div></div>
+      <div class="kpi"><div class="kpi-t">Egresos devengados</div>
+        ${kRow('Pagado',pag)}${kRow('Pendiente de pago',pen,pen>0.5?'neg-txt':'')}
+        <div class="kpi-row big"><span>Total devengado</span><b class="neg-txt">${formatARS(dev)}</b></div></div>
+      <div class="kpi total"><div class="kpi-t">Resultado devengado</div>
+        ${kRow('Ingresos',ingNeo,'pos-txt')}${kRow('Egresos devengados',dev,'neg-txt')}
+        <div class="kpi-row big"><span>Resultado</span><b class="${signoCls(resDev)}">${formatARS(resDev)}</b></div></div>
+    </div>
+    <div class="block-title">Egresos devengados por rubro <span class="n">${delPer.length} compras con fecha del ${formatFecha(desde)} al ${formatFecha(hasta)}</span></div>
+    ${delPer.length?`<div class="table-scroll" style="max-height:none"><table class="cat-tabla" style="border:none"><thead><tr><th>Rubro</th><th class="num">Compras</th><th class="num">Devengado</th><th class="num">Pagado</th><th class="num">Pendiente</th></tr></thead>
+      <tbody>${filasDev}<tr class="total-row"><td>Total devengado</td><td class="num">${delPer.length}</td><td class="num">${formatARS(dev)}</td><td class="num">${formatARS(pag)}</td><td class="num">${formatARS(pen)}</td></tr></tbody></table></div>`
+      :`<div class="vacio-blk">No hay compras de Neoform cargadas con fecha en este período.</div>`}`;
+
+  // ── Deudas pendientes ──
+  const pend=comprasNeo.filter(x=>x.c.fecha<=hasta && Math.abs(x.c.saldo)>0.5);
+  const totPend=sumaPor(pend,x=>x.c.saldo);
+  const anio=hasta.slice(0,4), ANT='ANT';
+  const colDe=x=>x.c.periodo<`${anio}-01`?ANT:x.c.periodo;
+  const cols=[...new Set(pend.map(colDe))].sort((a,b)=>a===ANT?-1:b===ANT?1:a.localeCompare(b));
+  const filasM=new Map();
+  pend.forEach(x=>{
+    const noop=x.k.tipo!=='OP', key=(noop?'1':'0')+normT(rubroCompra(x));
+    let f=filasM.get(key); if(!f){ f={rubro:rubroCompra(x),noop,tot:0,m:{}}; filasM.set(key,f); }
+    const c=colDe(x); f.m[c]=(f.m[c]||0)+x.c.saldo; f.tot+=x.c.saldo;
+  });
+  const celda=v=>v?`<td>${formatARS(v)}</td>`:`<td class="z">—</td>`;
+  const filasMat=[...filasM.values()].sort((a,b)=>(a.noop-b.noop)||(b.tot-a.tot)).map(f=>`<tr><td>${esc(bonito(f.rubro))}${f.noop?' <span class="pill noop">No operativo</span>':''}</td>${cols.map(c=>celda(f.m[c])).join('')}<td class="tt">${formatARS(f.tot)}</td></tr>`).join('');
+  const totCol=c=>sumaPor(pend.filter(x=>colDe(x)===c),x=>x.c.saldo);
+  const filasPend=pend.slice().sort((a,b)=>a.c.fecha.localeCompare(b.c.fecha)).map(x=>`<tr>
+      <td>${formatFecha(x.c.fecha)}</td><td>${esc(x.c.proveedor)}</td><td>${esc(bonito(rubroCompra(x)))}</td>
+      <td class="num">${formatARS(x.c.total)}</td><td class="num">${formatARS(x.c.pagado)}</td><td class="num neg-txt">${formatARS(x.c.saldo)}</td>
+      <td class="small">${conceptoCorto(x.c.concepto,70)}</td></tr>`).join('');
+  const htmlDeu=`
+    <div class="block-title" style="margin-top:38px">Deudas pendientes de pago <span class="n">compras con fecha hasta el ${formatFecha(hasta)} que hoy siguen con saldo · total ${formatARS(totPend)}</span>
+      ${pend.length?`<button class="btn-xs" onclick="exportarDeudasNeoCSV()">⬇ Excel</button>`:''}</div>
+    ${pend.length?`<div class="table-scroll" style="max-height:none"><table class="mtz"><thead><tr><th>Detalle</th>${cols.map(c=>`<th>${c===ANT?'Años anteriores':etiquetaMes(c)}</th>`).join('')}<th class="tt">Total</th></tr></thead>
+      <tbody>${filasMat}<tr class="total-row"><td>Total por período</td>${cols.map(c=>`<td>${formatARS(totCol(c))}</td>`).join('')}<td class="tt">${formatARS(totPend)}</td></tr></tbody></table></div>
+      <div class="nota-lim">Cada columna es el mes de la fecha de la compra (el mes en que correspondía pagarla). Cuando se registra el pago en el sistema, la compra deja de figurar acá.</div>
+      <div class="block-title">Comprobantes pendientes <span class="n">${pend.length} compras</span></div>
+      <div class="table-scroll"><table class="pagos-tabla"><thead><tr><th>Fecha</th><th>Proveedor</th><th>Rubro</th><th class="num">Total</th><th class="num">Pagado</th><th class="num">Saldo</th><th>Concepto</th></tr></thead><tbody>${filasPend}</tbody></table></div>`
+      :`<div class="vacio-blk">No hay compras de Neoform con saldo pendiente a esa fecha.</div>`}`;
+  cont.innerHTML=cab+htmlDev+htmlDeu;
+}
+function exportarDeudasNeoCSV(){
+  const hasta=document.getElementById('flt-hasta').value||document.getElementById('flt-desde').value;
+  const pend=comprasNeo.filter(x=>x.c.fecha<=hasta && Math.abs(x.c.saldo)>0.5).sort((a,b)=>a.c.fecha.localeCompare(b.c.fecha));
+  descargarCSV(pend,[
+    {header:'Fecha',get:x=>formatFecha(x.c.fecha)},
+    {header:'Periodo',get:x=>x.c.periodo||''},
+    {header:'Proveedor',get:x=>x.c.proveedor||''},
+    {header:'Rubro',get:x=>x.c.rubro||''},
+    {header:'Total',get:x=>x.c.total||0,numero:true},
+    {header:'Pagado',get:x=>x.c.pagado||0,numero:true},
+    {header:'Saldo pendiente',get:x=>x.c.saldo||0,numero:true},
+    {header:'Concepto',get:x=>x.c.concepto||''},
+  ],'neoform_deudas_pendientes');
 }
 
 // ── Gráficos: rubros operativos de mayor a menor (top 10 + resto) ──
