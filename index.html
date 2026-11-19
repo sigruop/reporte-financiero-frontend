@@ -657,6 +657,14 @@ const NOOP_CAT={
 function noopEgreso(p,key){
   const r=normT(p.rubro), c0=normT(p.categoria), s0=normT(p.subcategoria), con=normT(p.concepto);
   const mk=(g,sub,det)=>({cat:NOOP_CAT[g][0],o:NOOP_CAT[g][1],sub:sub||null,det:det||null});
+  // Salud Integral: el backend ya trae la estructura del informe "NO OPERATIVO SALUD" (Otros Egresos >
+  // Retiros / Otras Empresas / Otros > detalle) y se muestra tal cual.
+  if(key==='SIG'){
+    if(c0!=='OTROS EGRESOS') return null;
+    if(s0==='RETIROS' && !SW.DIRECTORES_NO_OPERATIVO) return null;
+    const orden={'RETIROS':1,'OTRAS EMPRESAS':2,'OTROS':3}[s0]||4;
+    return {cat:p.subcategoria||'Otros',o:orden,sub:p.detalle||null,det:null};
+  }
   // El rubro "EFECTIVO PARA OTRAS EMPRESAS" de Farmacia: en el Excel se separa en Efectivo para Salud /
   // Efectivo para Neo — acá se distingue por el concepto ("PRESTAMO A NEOFORM", "PRESTAMO A SALUD INTEGRAL").
   if(r.includes('EFECTIVO PARA OTRAS EMPRESAS')){
@@ -765,6 +773,9 @@ const FARM=Object.fromEntries(Object.entries(FARM_RAW).map(([k,v])=>[normT(k),v]
 // El rubro "SAMED" de SIG (compra de medicamentos a la farmacia) NO entra acá: sigue siendo un gasto de SIG.
 const RUBROS_SIG_DE_FARMACIA=new Set(['SUELDOS DE SAMED']);
 function empresaEgreso(p){
+  // Gasto de otra empresa pagado desde Salud (compras para SAMED, Neoform, CEMEI): el backend lo marca y se
+  // suma a esa empresa, no a Salud Integral (el informe de Salud no lo cuenta).
+  if(p.empresaImputada) return p.empresaImputada;
   const key=empresaKey(p.origen,p.unidad);
   if(key==='SIG' && RUBROS_SIG_DE_FARMACIA.has(normT(p.rubro))) return 'FARMACIA';
   return key;
