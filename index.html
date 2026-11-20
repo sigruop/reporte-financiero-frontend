@@ -865,7 +865,16 @@ function cemeiEgreso(p,key){
 // Se imputan a Farmacia (decisión de Gustavo) y se clasifican con la jerarquía de Farmacia.
 // El rubro "SAMED" de SIG (compra de medicamentos a la farmacia) NO entra acá: sigue siendo un gasto de SIG.
 const RUBROS_SIG_DE_FARMACIA=new Set(['SUELDOS DE SAMED']);
+// Pagos que el feed trae con la empresa equivocada: en SIG la compra figura con otra empresa/sucursal, pero el
+// detalle de pagos no trae ese dato y los deja en CEMEI. Se corrigen a mano por origen + número de pago.
+// Viáticos de Medicina Laboral (empresa "CEMEI LABORAL", sucursal "Medicina Laboral"), oct/2026.
+const PAGOS_DE_OTRA_EMPRESA={
+  'SIG Clínica (CEMEI)|27802':'LABORAL', // VIATICOS EL SURTIDOR
+  'SIG Clínica (CEMEI)|27829':'LABORAL', // VIATICO -PARQUE INDUSTRIAL
+};
 function empresaEgreso(p){
+  const forzada=PAGOS_DE_OTRA_EMPRESA[`${p.origen}|${p.idPago}`];
+  if(forzada) return forzada;
   // Gasto de otra empresa pagado desde Salud (compras para SAMED, Neoform, CEMEI): el backend lo marca y se
   // suma a esa empresa, no a Salud Integral (el informe de Salud no lo cuenta).
   if(p.empresaImputada) return p.empresaImputada;
