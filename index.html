@@ -872,7 +872,7 @@ const PAGOS_DE_OTRA_EMPRESA={
   'SIG Clínica (CEMEI)|27802':'LABORAL', // VIATICOS EL SURTIDOR
   'SIG Clínica (CEMEI)|27829':'LABORAL', // VIATICO -PARQUE INDUSTRIAL
 };
-function empresaEgreso(p){
+function empresaEgresoBase(p){
   const forzada=PAGOS_DE_OTRA_EMPRESA[`${p.origen}|${p.idPago}`];
   if(forzada) return forzada;
   // Gasto de otra empresa pagado desde Salud (compras para SAMED, Neoform, CEMEI): el backend lo marca y se
@@ -882,6 +882,14 @@ function empresaEgreso(p){
   if(key==='SIG' && RUBROS_SIG_DE_FARMACIA.has(normT(p.rubro))) return 'FARMACIA';
   return key;
 }
+// Los pagos a directores que hace CEMEI (haberes de Agustín Palavecino, VEP de Florencia, retiros) los cuenta el
+// informe de Salud Integral (Retiros): se imputan a SIG y no figuran en CEMEI (pedido de Gustavo, nov/2026).
+// Los de Farmacia siguen en Farmacia con una copia en SIG.
+function empresaEgreso(p){
+  const e=empresaEgresoBase(p);
+  if((e==='CEMEI'||e==='ODONT') && quienDirectorRetiro(p)) return 'SIG';
+  return e;
+}
 
 // Sueldos de directores pagados por otra empresa que el informe de Salud Integral también cuenta como retiro:
 // el "SUELDO GIMENA PALAVECINO" de la sucursal Farmacia y los haberes de Agustín Palavecino que paga CEMEI
@@ -889,13 +897,17 @@ function empresaEgreso(p){
 // copia en Salud Integral > Retiros (pedido de Gustavo, nov/2026). Con "Todas las empresas" la copia no se
 // suma, para no contar dos veces el mismo pago.
 const DIRECTORES_RETIRO=[['AGUSTIN','Agustín Palavecino'],['GIMENA','Gimena Palavecino'],['FLORENCIA','Florencia Palavecino']];
+function quienDirectorRetiro(p){
+  const r=normT(p.rubro), pr=normT(p.proveedor), c=normT(p.concepto);
+  if(r==='SUELDO GIMENA PALAVECINO') return 'Gimena Palavecino';
+  if(/^AGUSTIN PALA?VECINO$/.test(r)) return 'Agustín Palavecino'; // rubro de los retiros de Agustín
+  if(r.includes('SUELDOS DE DIRECTORES')){ const d=DIRECTORES_RETIRO.find(([n])=>pr.includes(n)&&/PALA?VECINO/.test(pr)); return d?d[1]:null; }
+  const d=DIRECTORES_RETIRO.find(([n])=>new RegExp(`PALAVECINO ${n}|${n} PALAVECINO`).test(c));
+  return (d && /HABERES|SUELDO/.test(c)) ? d[1] : null;
+}
 function retiroSIGDeOtraEmpresa(p,e){
   if(!['FARMACIA','CEMEI','ODONT'].includes(e)) return null;
-  const r=normT(p.rubro), pr=normT(p.proveedor), c=normT(p.concepto);
-  let quien=null;
-  if(r==='SUELDO GIMENA PALAVECINO') quien='Gimena Palavecino';
-  else if(r.includes('SUELDOS DE DIRECTORES')){ const d=DIRECTORES_RETIRO.find(([n])=>pr.includes(n)&&pr.includes('PALAVECINO')); quien=d?d[1]:null; }
-  else { const d=DIRECTORES_RETIRO.find(([n])=>new RegExp(`PALAVECINO ${n}|${n} PALAVECINO`).test(c)); if(d && /HABERES|SUELDO/.test(c)) quien=d[1]; }
+  const quien=quienDirectorRetiro(p);
   if(!quien) return null;
   const desde=e==='FARMACIA'?'Farmacia':'CEMEI';
   return SW.DIRECTORES_NO_OPERATIVO
@@ -904,7 +916,8 @@ function retiroSIGDeOtraEmpresa(p,e){
 }
 
 function clasificarEgreso(p){
-  const key=empresaEgreso(p);
+  const key=empresaEgreso(p), base=empresaEgresoBase(p);
+  if(key==='SIG' && base!=='SIG'){ const k=retiroSIGDeOtraEmpresa(p,base); if(k) return k; }
   const n=noopEgreso(p,key);
   if(n) return {tipo:'NOOP',cat:n.cat,sub:n.sub,det:n.det,o:n.o};
   if(key==='CEMEI'||key==='ODONT'){ const x=cemeiEgreso(p,key); if(x) return x; }
