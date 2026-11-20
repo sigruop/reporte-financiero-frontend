@@ -1090,14 +1090,15 @@ function bloqueArbol(o){
   const emp=document.getElementById('flt-empresa').value;
   const matchEmp=e=>!emp||(emp==='CEMEI_ALL'?(e==='CEMEI'||e==='ODONT'):e===emp);
   const {pref,clase,titulo,raiz,totalLbl,unidad}=o;
+  const empChips=o.chips?'':emp; // con chips=true se muestran las etiquetas Consultorios/Odontología en cada rubro
   let filas='';
   hijosDe(raiz).forEach((n1,i)=>{
     const id1=`${pref}-${i}`;
-    filas+=filaArbol(n1,1,id1,'',pref,raiz.total,emp);
+    filas+=filaArbol(n1,1,id1,'',pref,raiz.total,empChips);
     hijosDe(n1).forEach((n2,j)=>{
       const id2=`${id1}-${j}`;
-      filas+=filaArbol(n2,2,id2,id1,pref,raiz.total,emp);
-      hijosDe(n2).forEach((n3,k)=>{ filas+=filaArbol(n3,3,`${id2}-${k}`,id2,pref,raiz.total,emp); });
+      filas+=filaArbol(n2,2,id2,id1,pref,raiz.total,empChips);
+      hijosDe(n2).forEach((n3,k)=>{ filas+=filaArbol(n3,3,`${id2}-${k}`,id2,pref,raiz.total,empChips); });
     });
   });
   // Aviso si hay plata "Sin clasificar": es lo que todavía no tiene rubro asignado en el origen.
@@ -1122,8 +1123,8 @@ function bloqueArbol(o){
   </div>`;
 }
 
-// Cuando se elige "SIG Clínica (todas)", muestra Consultorios y Odontología como dos bloques
-// separados dentro de la misma sección, seguidos de un total combinado.
+// Cuando se elige "SIG Clínica (todas)", los INGRESOS se muestran como dos bloques separados (Consultorios y
+// Odontología, como en el Excel), seguidos de un total combinado. Los egresos van en un único árbol.
 function bloqueArbolDoble({clase,titulo,itemsCEMEI,itemsODONT,getMonto,getEmp,totalLbl,unidad,pref}){
   const raizC=armarArbol(itemsCEMEI,getMonto,getEmp);
   const raizO=armarArbol(itemsODONT,getMonto,getEmp);
@@ -1207,9 +1208,7 @@ function renderReporte(){
   const bloqueIng=(pref,titulo,raiz,items,totalLbl)=>isCEMEIAll
     ? bloqueArbolDoble({clase:'ing',titulo,itemsCEMEI:items.filter(x=>x.e==='CEMEI'),itemsODONT:items.filter(x=>x.e==='ODONT'),getMonto:mI,getEmp:eK,totalLbl,unidad:'cobros',pref})
     : bloqueArbol({pref,clase:'ing',titulo,raiz,totalLbl,unidad:'cobros'});
-  const bloqueEgr=(pref,titulo,raiz,items,totalLbl)=>isCEMEIAll
-    ? bloqueArbolDoble({clase:'egr',titulo,itemsCEMEI:items.filter(x=>x.e==='CEMEI'),itemsODONT:items.filter(x=>x.e==='ODONT'),getMonto:mE,getEmp:eK,totalLbl,unidad:'pagos',pref})
-    : bloqueArbol({pref,clase:'egr',titulo,raiz,totalLbl,unidad:'pagos'});
+  const bloqueEgr=(pref,titulo,raiz,items,totalLbl)=>bloqueArbol({pref,clase:'egr',titulo,raiz,totalLbl,unidad:'pagos',chips:isCEMEIAll});
 
   // ── Operativo ──
   document.getElementById('sec-op').innerHTML=
@@ -1230,9 +1229,7 @@ function renderReporte(){
     (isCEMEIAll
       ? bloqueArbolDoble({clase:'noop',titulo:'Depósitos y otros ingresos',itemsCEMEI:ingNo.filter(x=>x.e==='CEMEI'),itemsODONT:ingNo.filter(x=>x.e==='ODONT'),getMonto:mI,getEmp:eK,totalLbl:'Total ingresos no operativos',unidad:'cobros',pref:'ni'})
       : bloqueArbol({pref:'ni',clase:'noop',titulo:'Depósitos y otros ingresos',raiz:aIngNo,totalLbl:'Total ingresos no operativos',unidad:'cobros'}))+
-    (isCEMEIAll
-      ? bloqueArbolDoble({clase:'noop',titulo:'Egresos no operativos',itemsCEMEI:egNo.filter(x=>x.e==='CEMEI'),itemsODONT:egNo.filter(x=>x.e==='ODONT'),getMonto:mE,getEmp:eK,totalLbl:'Total egresos no operativos',unidad:'pagos',pref:'ne'})
-      : bloqueArbol({pref:'ne',clase:'noop',titulo:'Egresos no operativos',raiz:aEgNo,totalLbl:'Total egresos no operativos',unidad:'pagos'}))+
+    bloqueArbol({pref:'ne',clase:'noop',titulo:'Egresos no operativos',raiz:aEgNo,totalLbl:'Total egresos no operativos',unidad:'pagos',chips:isCEMEIAll})+
     franja('Resultado no operativo','Ingresos no operativos menos egresos no operativos',rNo)+
     `<details class="nota"><summary>¿Qué se considera no operativo?</summary><ul>${notas}</ul></details>`;
 
