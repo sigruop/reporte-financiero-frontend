@@ -543,9 +543,9 @@ const esTodoMayus = s => { const l=String(s||'').replace(/[^A-Za-zÁÉÍÓÚÜÑ
 
 // Los rubros vienen de cada API en MAYÚSCULAS ("FEDERACION FARMACEUTICA DE FSA"). Para que se lean
 // bien se pasan a Título solo al mostrar — las claves de agrupación siempre usan normT().
-const ACRONIMOS=new Set(['SAMED','ARCA','AFIP','BBVA','CEMEI','ACLISA','SOEM','REFSA','PLEX','ART','IVA','MP','OS','SIG','SRL','SA','SMG','CNP','JRB','EZVIZ','GAL','BOP','OSCEARA','OSPACA','OSPES','UTA','ROISA','MEPROA','COD','FC','AMP','IASEP','OSMATA','SPF','OSDE','FSA','SL','MKT','ML','FATFA','AFTF','CBU','DNI','CUIT']);
+const ACRONIMOS=new Set(['SAMED','ARCA','AFIP','BBVA','CEMEI','ACLISA','SOEM','REFSA','PLEX','ART','IVA','MP','OS','SIG','SRL','SA','SMG','CNP','JRB','EZVIZ','GAL','BOP','OSCEARA','OSPACA','OSPES','UTA','ROISA','MEPROA','COD','FC','AMP','IASEP','OSMATA','SPF','OSDE','FSA','SL','MKT','ML','FATFA','AFTF','CBU','DNI','CUIT','IIBB','HDD']);
 const MINUSCULAS=new Set(['DE','DEL','LA','LAS','LOS','Y','E','EN','PARA','A','AL','POR','CON','SIN','O','U']);
-const ACENTOS={MEDICOS:'Médicos',MEDICO:'Médico',MERCADERIAS:'Mercaderías',MERCADERIA:'Mercadería',DROGUERIAS:'Droguerías',DROGUERIA:'Droguería',COMPUTACION:'Computación',PAPELERIA:'Papelería',LAVANDERIA:'Lavandería',OXIGENO:'Oxígeno',PRESTAMO:'Préstamo',PRESTAMOS:'Préstamos',DEVOLUCION:'Devolución',DEVOLUCIONES:'Devoluciones',COMERCIALIZACION:'Comercialización',ADMINISTRACION:'Administración',FEDERACION:'Federación',FARMACEUTICA:'Farmacéutica',CAPITACION:'Capitación',FISCALIZACION:'Fiscalización',ORDENES:'Órdenes',INFORMATICOS:'Informáticos',LIBRERIA:'Librería',ODONTOLOGIA:'Odontología',MUNICIPLIDAD:'Municipalidad',DIA:'Día',PINTURERIA:'Pinturería',FERRETERIA:'Ferretería',VIATICOS:'Viáticos',SENAS:'Señas','SEÑAS':'Señas',QUIROFANO:'Quirófano',BARCENA:'Bárcena',COMISION:'Comisión',DOLARES:'Dólares',ENFERMERIA:'Enfermería',MODULACION:'Modulación',SANCION:'Sanción',HONORARIO:'Honorario',PREFACTURAS:'Prefacturas',DIAS:'Días',RESIDUOS:'Residuos',CAMARAS:'Cámaras'};
+const ACENTOS={PATOLOGICOS:'Patológicos',ENVIOS:'Envíos',GRAFICAS:'Gráficas',MEDICOS:'Médicos',MEDICO:'Médico',MERCADERIAS:'Mercaderías',MERCADERIA:'Mercadería',DROGUERIAS:'Droguerías',DROGUERIA:'Droguería',COMPUTACION:'Computación',PAPELERIA:'Papelería',LAVANDERIA:'Lavandería',OXIGENO:'Oxígeno',PRESTAMO:'Préstamo',PRESTAMOS:'Préstamos',DEVOLUCION:'Devolución',DEVOLUCIONES:'Devoluciones',COMERCIALIZACION:'Comercialización',ADMINISTRACION:'Administración',FEDERACION:'Federación',FARMACEUTICA:'Farmacéutica',CAPITACION:'Capitación',FISCALIZACION:'Fiscalización',ORDENES:'Órdenes',INFORMATICOS:'Informáticos',LIBRERIA:'Librería',ODONTOLOGIA:'Odontología',MUNICIPLIDAD:'Municipalidad',DIA:'Día',PINTURERIA:'Pinturería',FERRETERIA:'Ferretería',VIATICOS:'Viáticos',SENAS:'Señas','SEÑAS':'Señas',QUIROFANO:'Quirófano',BARCENA:'Bárcena',COMISION:'Comisión',DOLARES:'Dólares',ENFERMERIA:'Enfermería',MODULACION:'Modulación',SANCION:'Sanción',HONORARIO:'Honorario',PREFACTURAS:'Prefacturas',DIAS:'Días',RESIDUOS:'Residuos',CAMARAS:'Cámaras'};
 function bonito(s){
   s=String(s==null?'':s);
   if(!esTodoMayus(s)) return s;
@@ -772,6 +772,94 @@ const FARM_RAW={
 };
 const FARM=Object.fromEntries(Object.entries(FARM_RAW).map(([k,v])=>[normT(k),v]));
 
+// ── CEMEI Consultorios y CEMEI Odontología ───────────
+// Los egresos de las dos unidades de CEMEI se ordenan como el presupuesto financiero "CEMEI CONSULTORIOS Y
+// ODONTOLOGIA" (Libro3 de Gustavo): Gastos Administrativos / Gastos Prestacionales / Gastos Comerciales /
+// Hospital de Día > subrubro > detalle. El backend trae muchos de estos pagos "Sin clasificar" o con nombres
+// propios, así que se reclasifican por rubro, proveedor y concepto. Lo que no encaja en ninguna regla conserva
+// la clasificación del backend (queda a la vista, no se pierde).
+const CE_GA='Gastos Administrativos', CE_GP='Gastos Prestacionales', CE_GC='Gastos Comerciales', CE_HD='Hospital de Día';
+const CE_OTROS_RUBROS=new Set(['OTROS GASTOS','VARIOS','CEMEI CONSUL','CEMEI','SERVICIOS','VIATICOS Y OTROS','VIATICOS,IMPUESTOS','PERSONAL- CORPORATIVO ML','HONORARIOS VARIOS','OTROS GASTOS CEMEI']);
+// Orden de las filas, igual que en el Excel (si no, el árbol ordena por monto).
+const CE_SUB_ORD=['Costos Directos','Gastos Prestacionales','Gastos del Personal','Honorarios de Terceros','Impuestos','Gastos Bancarios y Comisiones','Servicios','Gastos Generales de Funcionamiento','Otros Gastos','Reintegros','Marketing','SUELDOS HDD','INSUMOS HDD','VARIOS HDD'];
+const CE_DET_ORD=['CONSULTORIO','ODONTOLOGIA','HONORARIOS MEDICOS CONSULTORIOS','HONORARIOS MEDICOS ODONTOLOGIA','Clínica Abruzzo (Di Biase Norma)','Diagnóstico por Imagen González Lelong S.R.L',
+  'Sueldos Cemei','Centro de empleados de comercio','Liquidaciones Cemei','Contadores','AFIP - IVA','AFIP 931','AFIP PLAN DE PAGOS','ANTICIPO GANANCIAS','IIBB','MUNICIPALIDAD','RETENCIONES ACLISA','OTROS',
+  'COMISIONES BANCARIAS','COMISIONES ACLISA','COMISIONES MP','SANCOR','SOEM','RECOLECTORA RESIDUOS PATOLOGICOS',
+  'GASTOS DE LIMPIEZA Y MERCADERIA','GASTOS DE MANT, PINTURERIA Y FERRETERIA','MANTENIMIENTO DE EQUIPAMIENTO MEDICO','PAPELERIA Y COMPUTACION','MOTOMANDADOS Y ENVIOS',
+  'BRINDIS, CUMPLEAÑOS, FIESTAS','OTROS GASTOS CEMEI','IMPRENTA Y GRAFICAS','OTROS MARKETING'];
+const ordenCE=(lista,x)=>{ const i=x?lista.indexOf(x):-1; return i<0?undefined:i+1; };
+function cemeiEgreso(p,key){
+  const r=normT(p.rubro), c=normT(p.concepto), pr=normT(p.proveedor), s0=normT(p.subcategoria), cp=c+' '+pr;
+  const op=(cat,sub,det)=>{ const cc=canonCat(cat); return {tipo:'OP',cat:cc.cat,o:cc.o,sub:sub||null,det:det||null,so:ordenCE(CE_SUB_ORD,sub),dor:ordenCE(CE_DET_ORD,det)}; };
+  const no=(g,sub,det)=>({tipo:'NOOP',cat:NOOP_CAT[g][0],o:NOOP_CAT[g][1],sub:sub||null,det:det||null});
+  const gp=d=>op(CE_GP,'Gastos Prestacionales',d), gg=d=>op(CE_GA,'Gastos Generales de Funcionamiento',d), hd=d=>op(CE_HD,d,null);
+
+  // ── No operativo: movimientos de plata que no son costo de la actividad ──
+  const prest=c.match(/^PRESTAMO A (CEMEI|CONSUL|ODONTO|SAMED|SALUD INTEGRAL|NEOFORM|FARMACIA)/);
+  if(prest){
+    if(['CEMEI','CONSUL','ODONTO'].includes(prest[1])) return no('GRUPO','Préstamos entre Consultorios y Odontología',null);
+    return no('GRUPO','Préstamos a otras empresas',{SAMED:'SAMED','SALUD INTEGRAL':'Salud Integral',NEOFORM:'Neoform',FARMACIA:'Farmacia'}[prest[1]]);
+  }
+  if(/^(MOV(IMIENTO)? ENTRE CUENTAS|MOV(IMIENTO)? DESDE|PASAR DE MP)/.test(c)) return no('OTROS','Transferencias entre cuentas propias',null);
+  if(/TRANSF(ERENCIA)? REALIZADA POR ERROR/.test(c)) return no('OTROS','Transferencias hechas por error',null);
+  if(/^MOVIMIENTOS? ENTRE CUENTAS/.test(r)) return no('OTROS','Transferencias entre cuentas propias',null);
+  if(r==='GASTO DE SALUD INTEGRAL') return no('GRUPO','Gastos de Salud Integral pagados por CEMEI',null);
+  if(r==='ROISA') return no('GRUPO','ROISA',null);
+  if(r==='SAMED') return no('GRUPO','SAMED (Farmacia)',pr.includes('RAMOS MENDOZA')?'Honorarios Ramos Mendoza':'Cuenta corriente Farmacia');
+  if(r.includes('SUELDOS DE DIRECTORES') || r==='AGUSTIN PALVECINO'){
+    const sub=r==='AGUSTIN PALVECINO'?'Retiros de Agustín Palavecino':'Sueldos de directores';
+    return SW.DIRECTORES_NO_OPERATIVO ? no('DIR',sub,null) : op(CE_GA,'Gastos del Personal',sub);
+  }
+
+  // ── Hospital de Día ──
+  if(/JUAREZ NOEMI/.test(c) || r==='SUELDOS HDD' || (r==='HOSPITAL DE DIA' && /HONORARIOS/.test(c))) return hd('SUELDOS HDD');
+  if(r==='INSUMOS HDD' || /TUBO (DE )?OXIGENO/.test(c) || (/\bHDD\b/.test(c) && !/CUMPLE|TORTA/.test(c))) return hd('INSUMOS HDD'); // los tubos de oxígeno van a HDD en el Excel
+  if(r==='HOSPITAL DE DIA') return hd('VARIOS HDD');
+
+  // ── Gastos Prestacionales ──
+  if(r==='HONORARIOS MEDICOS CONSULTORIOS' || r==='HONORARIOS MEDICOS ODONTOLOGOS')
+    return gp(r==='HONORARIOS MEDICOS CONSULTORIOS' && key!=='ODONT' ? 'HONORARIOS MEDICOS CONSULTORIOS' : 'HONORARIOS MEDICOS ODONTOLOGIA');
+  // Pagos a prestadores de convenios directos: Costos Directos, separados Consultorios / Odontología (pedido de Gustavo).
+  if(s0==='CONVENIOS DIRECTOS' || r.startsWith('CONVENIOS DIRECTOS') || r==='MEDICINA LABORAL') return op(CE_GP,'Costos Directos',key==='ODONT'?'ODONTOLOGIA':'CONSULTORIO');
+  if(r.startsWith('CLINICA ABRUZZO')) return gp('Clínica Abruzzo (Di Biase Norma)');
+  if(r.startsWith('DIAGNOSTICO POR IMAGEN')) return gp('Diagnóstico por Imagen González Lelong S.R.L');
+  if(/^COSTOS DIRECTOS/.test(s0) || r==='INSUMOS' || s0==='INSUMOS ODONTOLOGICOS' || /PURA SALUD|PAPEL PARA ECG/.test(cp) || /^(ODONTOLOGIA|CONSULTORIOS|INSUMOS ODONTOLOGICOS)$/.test(r)){
+    const odo=key==='ODONT' || /ODONTO/.test(s0+' '+r) || /ODONTOLOG|INSUDENT|CAVITADOR/.test(cp);
+    return op(CE_GP,'Costos Directos',odo?'ODONTOLOGIA':'CONSULTORIO');
+  }
+
+  // ── Gastos Administrativos ──
+  if(r==='SUELDOS DE CEMEI') return op(CE_GA,'Gastos del Personal',normT(p.detalle)==='LIQUIDACIONES'?'Liquidaciones Cemei':'Sueldos Cemei');
+  if(pr.includes('CENTRO DE EMPLEADOS') || r.includes('CENTRO DE EMPLEADOS')) return op(CE_GA,'Gastos del Personal','Centro de empleados de comercio');
+  if(r==='CONTADORES CEMEI') return op(CE_GA,'Honorarios de Terceros','Contadores');
+  if(r==='RETENCIONES ACLISA') return op(CE_GA,'Impuestos','RETENCIONES ACLISA');
+  if(r==='HONORARIOS VARIOS' && pr.includes('CONSEJO PROFESIONA')) return op(CE_GA,'Impuestos','OTROS');
+  if(r==='IMPUESTOS' || /^(ARCA|ATP|AFIP)\b/.test(r)){
+    const t=r+' '+c;
+    const d=/\b931\b|SUSS/.test(t)?'AFIP 931':/PLAN DE PAGO/.test(t)?'AFIP PLAN DE PAGOS':/ANTICIPO/.test(t)?'ANTICIPO GANANCIAS':/\bIVA\b/.test(t)?'AFIP - IVA':/IIBB|INGRESOS BRUTOS/.test(t)?'IIBB':/MUNICIP|TASAS? MUN/.test(t)?'MUNICIPALIDAD':'OTROS';
+    return op(CE_GA,'Impuestos',d);
+  }
+  if(/SANCOR/.test(cp)) return op(CE_GA,'Servicios','SANCOR');
+  if(r==='GASTOS BANCARIOS') return op(CE_GA,'Gastos Bancarios y Comisiones','COMISIONES BANCARIAS');
+  if(r==='COMISIONES MERCADO PAGO') return op(CE_GA,'Gastos Bancarios y Comisiones','COMISIONES MP');
+  if(r==='DESCUENTOS ACLISA') return op(CE_GA,'Gastos Bancarios y Comisiones','COMISIONES ACLISA');
+  if(pr.includes('SOEMGROUP') || /DESARROLLO CONTINUO/.test(c)) return op(CE_GA,'Servicios','SOEM');
+  if(/RECOLECTORA|HABITAT ECOLOGICO|SERVICIO DE RECOLECCION/.test(cp)) return op(CE_GA,'Servicios','RECOLECTORA RESIDUOS PATOLOGICOS');
+  if(/EQUIPAMIENTO MEDICO/.test(r)) return gg('MANTENIMIENTO DE EQUIPAMIENTO MEDICO');
+  if(/FERRETERIA|PINTURERIA/.test(r)) return gg('GASTOS DE MANT, PINTURERIA Y FERRETERIA');
+  if(/LIMPIEZA|MERCADERIA/.test(r)) return gg('GASTOS DE LIMPIEZA Y MERCADERIA');
+  if(/LIBRERIA|COMPUTACION|INFORMATICOS/.test(r)) return gg('PAPELERIA Y COMPUTACION');
+  if(/MOTOMANDADO/.test(r)) return gg('MOTOMANDADOS Y ENVIOS');
+  if(r==='IMPRENTA Y GRAFICAS') return op(CE_GC,'Marketing','IMPRENTA Y GRAFICAS');
+  if(r==='MARKETING' || r==='EVENTOS Y PUBLICIDAD') return op(CE_GC,'Marketing',/IMPRENTA|GRAFICA|FULL COLOR|LETRAS|PIZARRON/.test(cp)?'IMPRENTA Y GRAFICAS':'OTROS MARKETING');
+  if(/BRINDIS|FESTEJ|HOMENAJE/.test(r) || /CUMPLE|BRINDIS|FESTEJ/.test(c)) return op(CE_GA,'Otros Gastos','BRINDIS, CUMPLEAÑOS, FIESTAS');
+  if(CE_OTROS_RUBROS.has(r) || s0==='OTROS GASTOS'){
+    if(/^(DEVOLUCION|REINTEGRO A )|SENA DE TURNO/.test(c)) return op(CE_GA,'Reintegros',null);
+    return op(CE_GA,'Otros Gastos','OTROS GASTOS CEMEI');
+  }
+  return null;
+}
+
 // Empresa a la que se imputa un pago. Salud Integral (SIG) carga en su propio sistema algunos pagos que en
 // realidad son de la Farmacia: el rubro "SUELDOS DE SAMED" (haberes y honorarios del personal de la farmacia).
 // Se imputan a Farmacia (decisión de Gustavo) y se clasifican con la jerarquía de Farmacia.
@@ -810,6 +898,7 @@ function clasificarEgreso(p){
   const key=empresaEgreso(p);
   const n=noopEgreso(p,key);
   if(n) return {tipo:'NOOP',cat:n.cat,sub:n.sub,det:n.det,o:n.o};
+  if(key==='CEMEI'||key==='ODONT'){ const x=cemeiEgreso(p,key); if(x) return x; }
   if(key==='FARMACIA'){
     const f=FARM[normT(p.rubro)];
     if(f){ const cc=canonCat(f[0]); return {tipo:'OP',cat:cc.cat,sub:f[1],det:f[2]||null,o:cc.o}; }
@@ -835,8 +924,8 @@ function armarArbol(items,getMonto,getEmp){
     const m=getMonto(it)||0, e=getEmp(it), k=it.k;
     raiz.total+=m; raiz.count++;
     const n1=addNodo(raiz.kids,k.cat,m,e,k.o);
-    const n2=addNodo(n1.kids,k.sub||'Sin detalle',m,e,k.sub?undefined:98);
-    if(k.det) addNodo(n2.kids,k.det,m,e);
+    const n2=addNodo(n1.kids,k.sub||'Sin detalle',m,e,k.sub?k.so:98);
+    if(k.det) addNodo(n2.kids,k.det,m,e,k.dor);
   });
   return raiz;
 }
