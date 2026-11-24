@@ -627,6 +627,9 @@ function clasificarIngreso(c){
   if(ING_NOOP_TIPOS.includes(tf) || normT(c.cliente)==='OTROS INGRESOS'){
     return {tipo:'NOOP',cat:CAT_ING_NOOP,sub:ING_NOOP_TIPOS.includes(tf)?tf:'Otros ingresos',det:null,o:1};
   }
+  // Medicina Laboral: solo tiene clientes (empresas). No se separa en Particular / Plus / Convenios Directos como
+  // CEMEI: Medicina Laboral > cliente. Al filtrar Medicina Laboral se muestra solo el listado de clientes.
+  if(key==='LABORAL') return {tipo:'OP',cat:'Medicina Laboral',sub:(c.cliente&&String(c.cliente).trim())||'Sin cliente',det:null,o:50};
   // Otros convenios de la Farmacia: cobranza (RC) de Neoform, CEMEI, Salud Integral interno, directores y
   // colaboradores. El backend los separa del resto (CONVENIOS_FARMACIA en server.js) y acá van como categoría
   // propia, igual que "OTROS CONVENIOS" en la planilla: Otros convenios > grupo > cliente.
@@ -1190,7 +1193,9 @@ function renderReporte(){
   const matchEmp=e=>!emp||(emp==='CEMEI_ALL'?(e==='CEMEI'||e==='ODONT'):e===emp);
   const ing=ingClas.filter(x=>matchEmp(x.e));
   const egr=egClas.filter(x=>matchEmp(x.e) && !(x.copia && !emp));
-  const ingOp=ing.filter(x=>x.k.tipo==='OP'),   ingNo=ing.filter(x=>x.k.tipo==='NOOP');
+  // En Medicina Laboral los ingresos son solo el listado de clientes: se saca el rubro "Medicina Laboral" de arriba.
+  const soloClientes=x=>emp==='LABORAL'&&x.k.cat==='Medicina Laboral'?{...x,k:{...x.k,cat:x.k.sub||'Sin cliente',sub:null,det:null}}:x;
+  const ingOp=ing.filter(x=>x.k.tipo==='OP').map(soloClientes),   ingNo=ing.filter(x=>x.k.tipo==='NOOP');
   const egOp =egr.filter(x=>x.k.tipo==='OP'),   egNo =egr.filter(x=>x.k.tipo==='NOOP');
   const mI=x=>x.c.monto, mE=x=>x.p.importe, eK=x=>x.e;
   const aIngOp=armarArbol(ingOp,mI,eK), aEgOp=armarArbol(egOp,mE,eK);
