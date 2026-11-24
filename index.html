@@ -983,7 +983,11 @@ function clasificarEgreso(p){
   if(key==='CEMEI'||key==='ODONT'){ const x=cemeiEgreso(p,key); if(x) return x; }
   if(key==='LABORAL'){ const x=laboralEgreso(p); if(x) return x; }
   if(key==='FARMACIA'){
-    const f=FARM[normT(p.rubro)];
+    // Compras que Salud Integral hace para la Farmacia con el rubro SAMED (concepto "SAMED - 1 UNIDAD - Cortina…",
+    // "SAMED - Piso Flotante…", y el "DCTO." de la misma compra): refacción del local, van a Gastos Generales de
+    // Funcionamiento > Pinturería, Ferretería y Mantenimiento (pedido de Gustavo, nov/2026) y no a "Pagado por Salud Integral".
+    const compraSamed=normT(p.rubro)==='SAMED' && /^(SAMED\b|DCTO$)/.test(normT(p.concepto));
+    const f=FARM[compraSamed?'GASTOS DE MANTENIMIENTO SAMED':normT(p.rubro)];
     if(f){ const cc=canonCat(f[0]); return {tipo:'OP',cat:cc.cat,sub:f[1],det:f[2]||null,o:cc.o}; }
     if(normT(p.categoria)==='SIN CLASIFICAR') return {tipo:'OP',cat:GA,sub:'Otros Gastos',det:p.rubro||null,o:1};
   }
