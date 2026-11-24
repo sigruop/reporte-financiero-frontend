@@ -863,6 +863,60 @@ function cemeiEgreso(p,key){
   return null;
 }
 
+// ── Medicina Laboral ──
+// Estructura del Excel de egresos de Medicina Laboral: Gastos Prestacionales (Convenios Directos > prestador,
+// Auditores > médico) / Gastos Administrativos (Gastos del Personal > Sueldos ML, Gastos Bancarios, Servicios >
+// Personal, Gastos Generales de Funcionamiento > Librería/Computación, Motomandados, Viáticos y otros) / Gastos
+// Comerciales (Regalos Empresariales). CEMEI carga estos pagos con rubros terminados en "ML" ("CONVENIOS DIRECTOS
+// - ML", "SUELDOS DE ML"…) —a veces con unidad "CEMEI SRL"— o con el rubro "MEDICINA LABORAL"; Salud Integral con
+// "SUELDOS DE MEDICINA LABORAL".
+const LAB_GP='Gastos Prestacionales', LAB_GA='Gastos Administrativos', LAB_GC='Gastos Comerciales';
+const LAB_CAT_ORD={[LAB_GP]:1,[LAB_GA]:2,[LAB_GC]:3}; // orden del Excel de Laboral (en el resto va primero Administrativos)
+const LAB_SUB_ORD=['Convenios Directos','Auditores','Gastos del Personal','Gastos Bancarios','Servicios','Gastos Generales de Funcionamiento','Regalos Empresariales'];
+const LAB_DET_ORD=['Sueldos ML','Liquidaciones ML','Comisiones bancarias','PERSONAL','ART. LIBRERÍA/COMPUTACIÓN','MOTOMANDADOS','VIATICOS Y OTROS'];
+// Médicos que auditan (honorarios mensuales): van a Auditores y no a Convenios Directos.
+const LAB_AUDITORES=[[/VELAZTIQUI|VELASTIQUI/,'DARIO VELASTIQUI'],[/BOGARIN/,'BOGARIN DAVID DIOSNEL']];
+// Prestadores con nombre propio en el Excel; el resto de los convenios usa el nombre del proveedor.
+const LAB_PRESTADORES=[[/SEPULVE/,'BELEN SEPULVE'],[/OJEDA/,'Ojeda Rolando'],[/SANIDAR/,'SANIDAR'],[/POLARIS|ALVARENGA ANDREA/,'CENTRO POLARIS'],
+  [/CETEM|RESONANCIA MAGNETICA/,'CETEM'],[/DIAGNOSTICO POR IMAGEN/,'DIAGNOSTICOS POR IMAGEN'],[/HERRERA CHACON/,'HERRERA CHACON MATIAS DAMIAN'],[/SANDOVAL|SANDOBAL/,'SANDOVAL JORGE']];
+const esRubroLaboral=rubro=>{ const r=normT(rubro); return /(^|[\s-])ML$/.test(r) || r==='MEDICINA LABORAL'; };
+function laboralEgreso(p){
+  const r=normT(p.rubro), c=normT(p.concepto), pr=normT(p.proveedor), cp=c+' '+pr;
+  const op=(cat,sub,det)=>({tipo:'OP',cat,o:canonCat(cat).o,sub:sub||null,det:det||null});
+  const gg=d=>op(LAB_GA,'Gastos Generales de Funcionamiento',d);
+  // Gastos Prestacionales > Auditores. La indumentaria/bandera de sponsor del Dr. Velaztiqui es un viático, no honorarios.
+  const aud=LAB_AUDITORES.find(([re])=>re.test(pr));
+  if(aud && !/INDUMENTARIA|SPONSOR|BANDERA|VIATIC/.test(c)) return op(LAB_GP,'Auditores',aud[1]);
+  // Gastos Administrativos > Gastos del Personal
+  if(r==='SUELDOS DE ML' || r==='SUELDOS DE MEDICINA LABORAL')
+    return op(LAB_GA,'Gastos del Personal',/^LIQUIDACION/.test(c)||normT(p.detalle)==='LIQUIDACIONES'?'Liquidaciones ML':'Sueldos ML');
+  // Gastos Comerciales > Regalos Empresariales
+  if(/REGALOS? EMPRESARIAL/.test(r)) return op(LAB_GC,'Regalos Empresariales',null);
+  // Gastos Bancarios
+  if(/^GASTOS BANCARIOS|^COMISIONES? (BANCARIAS?|MERCADO PAGO)/.test(r)) return op(LAB_GA,'Gastos Bancarios','Comisiones bancarias');
+  // Servicios > Personal (telefonía celular: el rubro PERSONAL- CORPORATIVO ML y los reintegros de línea)
+  if(/PERSONAL[- ]+CORPORATIVO/.test(r) || /TELEFON|TELELFONO|LINEA MOVIL|TELECOM|PERSONAL FLOW|MERCADO PAGO PERSONAL|PERSONAL ML/.test(cp)) return op(LAB_GA,'Servicios','PERSONAL');
+  // Gastos Generales de Funcionamiento
+  if(/LIBRERIA|COMPUTACION/.test(r) || /TINTA|IMPRESORA|TONER/.test(c)) return gg('ART. LIBRERÍA/COMPUTACIÓN');
+  if(/MOTOMANDADO/.test(r)) return gg('MOTOMANDADOS');
+  // Gastos Prestacionales > Convenios Directos. El rubro histórico "MEDICINA LABORAL" mezclaba prestadores con compras
+  // sueltas (Mercado Libre, encomiendas, repuestos): lo que no es de un prestador va a Viáticos y otros.
+  if(r.startsWith('CONVENIOS DIRECTOS') || r==='MEDICINA LABORAL'){
+    const pst=LAB_PRESTADORES.find(([re])=>re.test(cp));
+    const suelto=/MERCADO LIBRE|ELECTRO ?MISIONES|DIENST|ENCOMIENDA|CAJITA/.test(cp) || (/^GASTOS SIN FACTURAS?$/.test(pr) && !pst);
+    if(r!=='MEDICINA LABORAL' || !suelto) return op(LAB_GP,'Convenios Directos',pst?pst[1]:(p.proveedor||'Sin proveedor'));
+    return gg('VIATICOS Y OTROS');
+  }
+  if(/^VIATICOS/.test(r)) return gg('VIATICOS Y OTROS');
+  return null; // lo que no encaja conserva la clasificación del backend (queda a la vista)
+}
+// Orden de filas del Excel de Laboral. Solo en la vista Medicina Laboral: con "Todas las empresas" los
+// rubros se mezclan con los de las otras empresas y se ordenan como el resto.
+function ordenLaboral(k){
+  const co=LAB_CAT_ORD[k.cat];
+  return co==null?k:{...k,o:co,so:ordenCE(LAB_SUB_ORD,k.sub),dor:ordenCE(LAB_DET_ORD,k.det)};
+}
+
 // Empresa a la que se imputa un pago. Salud Integral (SIG) carga en su propio sistema algunos pagos que en
 // realidad son de la Farmacia: el rubro "SUELDOS DE SAMED" (haberes y honorarios del personal de la farmacia).
 // Se imputan a Farmacia (decisión de Gustavo) y se clasifican con la jerarquía de Farmacia.
@@ -883,6 +937,9 @@ function empresaEgresoBase(p){
   if(p.empresaImputada) return p.empresaImputada;
   const key=empresaKey(p.origen,p.unidad);
   if(key==='SIG' && RUBROS_SIG_DE_FARMACIA.has(normT(p.rubro))) return 'FARMACIA';
+  // Rubros de Medicina Laboral que CEMEI carga con unidad "CEMEI SRL" u "Odontología" (CONVENIOS DIRECTOS - ML,
+  // PERSONAL- CORPORATIVO ML, LIBRERIA Y COMPUTACION- ML, MEDICINA LABORAL…): son de Laboral, no de Consultorios.
+  if((key==='CEMEI'||key==='ODONT') && esRubroLaboral(p.rubro)) return 'LABORAL';
   return key;
 }
 // Los pagos a directores que hace CEMEI (haberes de Agustín Palavecino, VEP de Florencia, retiros) los cuenta el
@@ -924,6 +981,7 @@ function clasificarEgreso(p){
   const n=noopEgreso(p,key);
   if(n) return {tipo:'NOOP',cat:n.cat,sub:n.sub,det:n.det,o:n.o};
   if(key==='CEMEI'||key==='ODONT'){ const x=cemeiEgreso(p,key); if(x) return x; }
+  if(key==='LABORAL'){ const x=laboralEgreso(p); if(x) return x; }
   if(key==='FARMACIA'){
     const f=FARM[normT(p.rubro)];
     if(f){ const cc=canonCat(f[0]); return {tipo:'OP',cat:cc.cat,sub:f[1],det:f[2]||null,o:cc.o}; }
@@ -1196,7 +1254,8 @@ function renderReporte(){
   // En Medicina Laboral los ingresos son solo el listado de clientes: se saca el rubro "Medicina Laboral" de arriba.
   const soloClientes=x=>emp==='LABORAL'&&x.k.cat==='Medicina Laboral'?{...x,k:{...x.k,cat:x.k.sub||'Sin cliente',sub:null,det:null}}:x;
   const ingOp=ing.filter(x=>x.k.tipo==='OP').map(soloClientes),   ingNo=ing.filter(x=>x.k.tipo==='NOOP');
-  const egOp =egr.filter(x=>x.k.tipo==='OP'),   egNo =egr.filter(x=>x.k.tipo==='NOOP');
+  const ordLab=x=>emp==='LABORAL'?{...x,k:ordenLaboral(x.k)}:x; // filas en el orden del Excel de Laboral
+  const egOp =egr.filter(x=>x.k.tipo==='OP').map(ordLab),   egNo =egr.filter(x=>x.k.tipo==='NOOP');
   const mI=x=>x.c.monto, mE=x=>x.p.importe, eK=x=>x.e;
   const aIngOp=armarArbol(ingOp,mI,eK), aEgOp=armarArbol(egOp,mE,eK);
   const aIngNo=armarArbol(ingNo,mI,eK), aEgNo=armarArbol(egNo,mE,eK);
