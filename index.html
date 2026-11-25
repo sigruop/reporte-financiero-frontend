@@ -1031,6 +1031,8 @@ function clasificarIngreso(c){
     }
     return {tipo:'OP',cat:'Otros convenios',sub:'Otros ingresos Farmacia',det:c.concepto?String(c.concepto).slice(0,60):null,o:60};
   }
+  // Neoform: sus "OTROS INGRESOS" (efectivo que recibe, p.ej. los préstamos de SAMED/Salud para pagar haberes) van como Operativo.
+  if(key==='NEO' && normT(c.cliente)==='OTROS INGRESOS') return {tipo:'OP',cat:'Otros ingresos',sub:null,det:null,o:60};
   if(ING_NOOP_TIPOS.includes(tf) || normT(c.cliente)==='OTROS INGRESOS'){
     return {tipo:'NOOP',cat:CAT_ING_NOOP,sub:ING_NOOP_TIPOS.includes(tf)?tf:'Otros ingresos',det:null,o:1};
   }
@@ -1736,7 +1738,7 @@ function renderReporte(){
 
   // ── No operativo ──
   const notas=[
-    '<li><b>Ingresos:</b> efectivo de Farmacia San Lorenzo (SAMED), Facturas COD 01 y 02 y otros ingresos que no son cobranza de la actividad.</li>',
+    '<li><b>Ingresos:</b> efectivo de Farmacia San Lorenzo (SAMED), Facturas COD 01 y 02 y otros ingresos que no son cobranza de la actividad (excepto los "Otros ingresos" de Neoform, que van como operativo).</li>',
     '<li><b>Egresos – grupo:</b> efectivo y préstamos a otras empresas (Salud Integral, Neoform), devoluciones de préstamos y pagos de SIG a Neoform.</li>',
     '<li><b>Egresos – préstamos y otros:</b> préstamos recibidos o devueltos, compra de dólares'+(SW.COD_NO_OPERATIVO?', Facturas COD':'')+'.</li>',
     SW.DIRECTORES_NO_OPERATIVO?'<li><b>Egresos – directores y socios:</b> retiros, gastos de directores y el sueldo de Gimena Palavecino.</li>':'',
