@@ -267,6 +267,18 @@
     <div style="font-size:12.5px;color:var(--muted);padding:6px 2px 0;">Export del punto de venta (CSV, separado por ';'). Reemplaza el/los meses que aparezcan en el archivo — no afecta otros meses.</div>
   </section>
 
+  <!-- Carga de liquidaciones de ACLISA (solo visible con "Todas" o "Neoform") -->
+  <section id="liq-upload-section" style="margin:6px 0 4px;">
+    <div class="up-card">
+      <strong>Cargar liquidaciones de ACLISA</strong>
+      <input type="file" id="liq-archivo" accept=".pdf,application/pdf" multiple/>
+      <button class="btn" style="padding:9px 20px;font-size:14px" onclick="procesarLiquidacionesPDF()">Procesar PDF</button>
+      <span id="liq-upload-estado" style="font-size:13px;color:var(--muted);"></span>
+    </div>
+    <div id="liq-upload-detalle" style="font-size:13px;padding:4px 2px 0;"></div>
+    <div style="font-size:12.5px;color:var(--muted);padding:6px 2px 0;">PDF "Liquidación de honorarios y gastos" de ACLISA (se pueden elegir varios). El ingreso operativo de ACLISA se arma con el <b>importe a cobrar</b> de cada liquidación, con piso en $0. Si volvés a subir una liquidación, reemplaza la anterior.</div>
+  </section>
+
   <div id="vacio" class="vacio">Elegí el período y la empresa, y tocá <strong>Consultar</strong> para armar el reporte.</div>
 
   <div id="reporte" style="display:none">
@@ -275,6 +287,7 @@
     <div id="sec-op"></div>
     <div id="sec-noop"></div>
     <div id="sec-total"></div>
+    <div id="sec-liq"></div>
     <div id="sec-neo"></div>
 
     <div id="sec-graf">
@@ -328,6 +341,8 @@ let ingClas=[], egClas=[];              // lo mismo, ya clasificado: [{c|p, k:{t
 let ingFarmaciaDeuda={cobertura:0,ctaCtePendiente:0,meses:[]};
 let ingExcl={n:0,monto:0};              // cobros que se descartan al cargar (rendiciones de caja de Farmacia)
 let ingOk=false, egOk=false, enLote=false;
+let ingClasBase=[], ingRango={desde:'',hasta:''}; // cobros del sistema ya clasificados y el rango con que se pidieron (ingClas = base + liquidaciones)
+let liqAll=[], liqBackend=null;         // liquidaciones de ACLISA cargadas; liqBackend: 'ok' | 'sin-modulo' | 'error' | null
 let comprasNeo=[], comprasOk=false;     // compras de Neoform (pagas o no): [{c, k}] — para Devengado y Deudas
 
 const hoyISO=()=>new Date().toISOString().slice(0,10);
@@ -526,6 +541,356 @@ async function procesarFarmaciaCSV(){
   }
 }
 
+// <<LIQ
+// ══════════════════════════════════════════════════════
+// LIQUIDACIONES ACLISA — lectura del PDF "LIQUIDACIÓN DE HONORARIOS Y GASTOS"
+// Funciones puras (sin DOM): reciben los textos con posición que entrega pdf.js y devuelven la liquidación.
+// ══════════════════════════════════════════════════════
+const LIQ_CUIT_NEO='30624299287';
+const liqMonto=s=>{ // "$ -9.352.105,35" → -9352105.35 ; null si no hay importe
+  const m=String(s==null?'':s).match(/(-)?\s*\$?\s*(-)?\s*(\d{1,3}(?:\.\d{3})*|\d+),(\d{2})\b/);
+  if(!m) return null;
+  const n=Number(m[3].replace(/\./g,'')+'.'+m[4]);
+  return (m[1]||m[2])?-n:n;
+};
+const liqEsMonto=s=>/^\$?\s*-?\s*\$?\s*-?\d{1,3}(?:\.\d{3})*,\d{2}$/.test(String(s).trim()) || /^\$?\s*-?\d+,\d{2}$/.test(String(s).trim());
+const liqNorm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\s+/g,' ').trim();
+const liqR2=n=>Math.round(n*100)/100;
+
+// items de pdf.js [{str,x,y}] (de todas las páginas, en orden) → líneas = arrays de celdas ordenadas por x
+function liqAgruparLineas(paginas){
+  const lineas=[];
+  paginas.forEach(items=>{
+    const its=items.filter(i=>String(i.str).trim()).map(i=>({s:String(i.str).replace(/\s+/g,' ').trim(),x:i.x,y:i.y}));
+    its.sort((a,b)=>b.y-a.y||a.x-b.x);
+    let cur=null;
+    its.forEach(i=>{
+      if(cur && Math.abs(cur.y-i.y)<=2) cur.items.push(i);
+      else { cur={y:i.y,items:[i]}; lineas.push(cur); }
+    });
+  });
+  return lineas.map(l=>{
+    const cel=l.items.sort((a,b)=>a.x-b.x).map(i=>i.s);
+    const out=[]; // un "$" suelto se pega al importe que sigue
+    for(let k=0;k<cel.length;k++){ if(cel[k]==='$' && cel[k+1]) { out.push('$ '+cel[k+1]); k++; } else out.push(cel[k]); }
+    return out;
+  });
+}
+
+function parsearLiquidacionAclisa(lineas){
+  const L={numero:null,tramo:null,mes:null,anio:null,fechaEmision:null,totalHeader:null,prestador:null,cuitPrestador:null,
+    rendiciones:[],debitos:[],descuentos:[],retenciones:[],
+    totalRendiciones:null,totalDebCred:null,neto:null,iva:null,iva_pct:null,totalBase:null,totalDescuentos:null,totalRetenciones:null,importeACobrar:null};
+  const errores=[], avisos=[];
+  const skip=/ACLISAFSA\.AR|^HORA Y FECHA|GERENCIA@|^TEL:|^\d{8}$|^PAGINA$|^PAGINA \d+$/;
+  let sec=null;
+  lineas.forEach(cel=>{
+    const txt=cel.join(' ').replace(/\s+/g,' ').trim();
+    if(!txt) return;
+    const T=liqNorm(txt), c0=liqNorm(cel[0]);
+    if(skip.test(T) || /HORA Y FECHA/.test(T)) return;
+    // ── encabezado (se repite en cada página)
+    if(/^LIQUIDACION DE HONORARIOS/.test(T) || /^\(\d\) INCREMENTO/.test(T)) return;
+    let m;
+    if(/^N°\s*\d+/.test(cel[0]) && (m=txt.match(/N°\s*(\d+)/)) && /PERIODO/.test(T)){
+      const num=m[1].replace(/^0+/,'')||'0';
+      if(!L.numero){ L.numero=num;
+        const p=txt.match(/Periodo:\s*(\d+)\s*-\s*(\d{1,2})\/(\d{4})/i); if(p){ L.tramo=+p[1]; L.mes=+p[2]; L.anio=+p[3]; } }
+      else if(L.numero!==num && !errores.some(e=>/más de una liquidación/.test(e))) errores.push(`El PDF contiene más de una liquidación (N° ${L.numero} y N° ${num}): subí cada una por separado`);
+      return;
+    }
+    if(/^FECHA EMISION/.test(c0) && (m=txt.match(/Fecha Emisi[oó]n:\s*(\d{4}-\d{2}-\d{2})/i))){
+      if(!L.fechaEmision){ L.fechaEmision=m[1]; const t=txt.match(/TOTAL:\s*(.*)$/i); if(t) L.totalHeader=liqMonto(t[1]); }
+      return;
+    }
+    if(/^EVA PERON/.test(T)) return;
+    if(c0==='PRESTADOR:'){ if(!L.prestador) L.prestador=cel[1]||null; return; }
+    if(c0==='CUIT:'){ if(!L.cuitPrestador) L.cuitPrestador=(cel[1]||'').replace(/\D/g,''); return; }
+    // ── cabeceras de sección
+    if(c0==='RENDICIONES'){ sec='rend'; return; }
+    if(/^DEBITOS\/CREDITOS$/.test(c0)){ sec='deb'; return; }
+    if(/^DESCUENTOS APLICADOS/.test(c0)){ sec='desc'; return; }
+    if(c0==='RETENCIONES'){ sec='ret'; return; }
+    // ── totales
+    if(/^TOTAL RENDICIONES/.test(T)){ L.totalRendiciones=liqMonto(txt); return; }
+    if(/^TOTAL DEBITOS\/CREDITOS/.test(T)){ L.totalDebCred=liqMonto(txt); return; }
+    if(/^TOTAL DESCUENTOS/.test(T)){ L.totalDescuentos=liqMonto(txt); return; }
+    if(/^TOTAL RETENCIONES/.test(T)){ L.totalRetenciones=liqMonto(txt); return; }
+    if(/^TOTAL DE DESCUENTOS/.test(T)){ if(L.totalDescuentos==null) L.totalDescuentos=liqMonto(txt); return; }
+    if(/^TOTAL DE RETENCIONES/.test(T)){ if(L.totalRetenciones==null) L.totalRetenciones=liqMonto(txt); return; }
+    if(/^IMPORTE A COBRAR/.test(T)){ L.importeACobrar=liqMonto(txt); return; }
+    if(/^NETO\b/.test(T) && liqMonto(txt)!=null){ L.neto=liqMonto(txt); return; }
+    if((m=T.match(/^IVA\s*([\d.,]+)\s*%/)) && liqMonto(txt.replace(/^IVA\s*[\d.,]+\s*%/i,''))!=null){ L.iva_pct=Number(m[1].replace(',','.')); L.iva=liqMonto(txt.replace(/^IVA\s*[\d.,]+\s*%/i,'')); return; }
+    if(/^TOTAL\s+\$/.test(T)){ L.totalBase=liqMonto(txt); return; }
+    // ── filas de cada sección
+    const montos=cel.filter(liqEsMonto);
+    if(sec==='rend' && /^\d+\s*-\s*/.test(cel[0])){
+      const id=cel[0].match(/^(\d+)\s*-\s*(.*)$/);
+      const per=cel.find(x=>/^\d{1,2}\/\d{4}/.test(x)); const porc=cel.find(x=>/^\d+\.\d{2}$/.test(x));
+      if(montos.length!==4){ errores.push(`Rendición ${id[1]}: se esperaban 4 importes y se leyeron ${montos.length}`); return; }
+      const v=montos.map(liqMonto);
+      L.rendiciones.push({id:id[1],os:id[2].trim(),periodo:per?per.replace(/\s*\(\d+\)/,''):null,incremento:!!(per&&/\(\d+\)/.test(per)),porc:porc?Number(porc):null,honorarios:v[0],gastos:v[1],debCrePrev:v[2],total:v[3]});
+      return;
+    }
+    if(sec==='deb' && /^\d+\s*-\s*/.test(cel[0])){
+      const id=cel[0].match(/^(\d+)\s*-\s*(.*)$/);
+      const per=cel.find(x=>/^\d{1,2}\/\d{4}$/.test(x)); const mot=cel.find((x,i)=>i>0 && x!==per && !liqEsMonto(x));
+      if(!montos.length){ errores.push(`Débito ${id[1]}: sin importe`); return; }
+      L.debitos.push({id:id[1],os:id[2].trim(),periodo:per||null,motivo:mot||'',total:liqMonto(montos[montos.length-1])});
+      return;
+    }
+    if(sec==='desc'){
+      if(montos.length){ const det=cel.slice(1).filter(x=>!liqEsMonto(x)).join(' · ');
+        L.descuentos.push({concepto:cel[0],detalle:det,total:liqMonto(montos[montos.length-1])}); }
+      else if(L.descuentos.length) L.descuentos[L.descuentos.length-1].detalle+=' '+txt; // texto que continúa en otra línea
+      return;
+    }
+    if(sec==='ret'){
+      if(montos.length) L.retenciones.push({concepto:cel[0],total:liqMonto(montos[montos.length-1])});
+      return;
+    }
+    if(/PRESTADOR|CUIT|CATEGORIA/.test(T)) return;
+    avisos.push('Línea sin interpretar: '+txt.slice(0,80));
+  });
+
+  // ── validaciones
+  if(!L.numero) errores.push('No se encontró el número de liquidación');
+  if(!L.fechaEmision) errores.push('No se encontró la fecha de emisión');
+  if(L.importeACobrar==null) errores.push('No se encontró "Importe a Cobrar"');
+  if(L.mes==null) errores.push('No se pudo leer el período');
+  if(L.cuitPrestador && L.cuitPrestador!==LIQ_CUIT_NEO) errores.push(`El prestador de esta liquidación (${L.prestador||''} · CUIT ${L.cuitPrestador}) no es Neoform`);
+  if(!L.cuitPrestador) errores.push('No se encontró el CUIT del prestador');
+  const sum=a=>liqR2(a.reduce((s,x)=>s+(x.total||0),0));
+  const cmp=(nombre,calc,leido,tol)=>{ if(leido==null){ avisos.push(`No se encontró "${nombre}" para controlar`); return; }
+    if(Math.abs(calc-leido)>tol) avisos.push(`${nombre}: las filas suman ${calc.toLocaleString('es-AR')} y el PDF dice ${leido.toLocaleString('es-AR')}`); };
+  cmp('Total Rendiciones',sum(L.rendiciones),L.totalRendiciones,Math.max(1,L.rendiciones.length*0.1));
+  cmp('Total Débitos/Créditos',sum(L.debitos),L.totalDebCred==null&&!L.debitos.length?0:L.totalDebCred,0.5);
+  cmp('Total Descuentos',sum(L.descuentos),L.totalDescuentos,0.5);
+  cmp('Total Retenciones',sum(L.retenciones),L.totalRetenciones==null&&!L.retenciones.length?0:L.totalRetenciones,0.5);
+  if(L.importeACobrar!=null){
+    if(L.totalHeader!=null && Math.abs(L.totalHeader-L.importeACobrar)>0.01) errores.push(`El TOTAL del encabezado (${L.totalHeader}) no coincide con el Importe a Cobrar (${L.importeACobrar})`);
+    if(L.totalBase!=null && L.totalDescuentos!=null){
+      const calc=liqR2(L.totalBase+L.totalDescuentos+(L.totalRetenciones||0));
+      if(Math.abs(calc-L.importeACobrar)>0.5) errores.push(`Total (${L.totalBase}) + descuentos + retenciones = ${calc}, pero el Importe a Cobrar dice ${L.importeACobrar}`);
+    } else avisos.push('No se pudo recalcular el importe a cobrar (falta el "Total" o los descuentos)');
+  }
+  return {liq:L,errores,avisos};
+}
+
+// Qué es cada descuento de la liquidación
+function liqTipoDescuento(d){
+  const c=liqNorm(d.concepto);
+  if(/ADELANTO/.test(c)) return 'ADELANTO';
+  if(/DIFERENCIA DE LIQUIDACIONES/.test(c)) return 'DIFERENCIA';
+  return 'COSTO';
+}
+// Número de la liquidación anterior a la que refiere una "diferencia", o número del adelanto
+const liqRefNumero=d=>{ const m=String(d.detalle||'').match(/N°\s*(\d+)/); return m?m[1].replace(/^0+/,''):null; };
+// LIQ>>
+
+// ══════════════════════════════════════════════════════
+// LIQUIDACIONES ACLISA — datos (servidor + copia en el navegador), carga del PDF y bloque del reporte
+// ══════════════════════════════════════════════════════
+// El ingreso operativo de ACLISA en Neoform = importe a cobrar de cada liquidación (piso en 0). Las
+// prefacturas de ACLISA quedan como "referencia" (tipo REF): no suman ni a operativo ni a no operativo.
+const LIQ_LS='liqAclisa_v1';
+const liqLeerLocal=()=>{ try{ const o=JSON.parse(localStorage.getItem(LIQ_LS)||'{}'); return (o&&typeof o==='object')?o:{}; }catch(e){ return {}; } };
+const liqGuardarLocal=m=>{ try{ localStorage.setItem(LIQ_LS,JSON.stringify(m)); }catch(e){} };
+const liqMapa=lista=>{ const m={}; lista.forEach(l=>{ m[l.numero]=l; }); return m; };
+const liqOrdenar=lista=>lista.sort((a,b)=>String(a.fechaEmision).localeCompare(b.fechaEmision)||String(a.numero).localeCompare(b.numero,'es',{numeric:true}));
+const liqPeriodoTxt=l=>`${l.tramo!=null?l.tramo+' - ':''}${l.mes}/${l.anio}`;
+
+async function liqSubir(lista,backend){
+  const resp=await fetch(`${backend}/api/ingest/liquidaciones-aclisa`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({liquidaciones:lista})});
+  const txt=await resp.text(); let data;
+  try{ data=JSON.parse(txt); }
+  catch(e){ throw new Error(`el servidor todavía no tiene el módulo de liquidaciones (HTTP ${resp.status})`); }
+  if(!resp.ok) throw new Error(data.error||`HTTP ${resp.status}`);
+  return data;
+}
+
+// Trae las liquidaciones guardadas en el servidor y las junta con la copia de este navegador. Si el servidor
+// perdió datos (disco efímero de Render), lo que esté en la copia del navegador se vuelve a subir solo.
+async function consultarLiquidaciones(){
+  const backend=document.getElementById('flt-backend').value.trim().replace(/\/$/,'');
+  const local=liqLeerLocal();
+  let remotas=[];
+  try{
+    const data=await fetchConDespertar(`${backend}/api/liquidaciones-aclisa`,null);
+    remotas=Array.isArray(data.liquidaciones)?data.liquidaciones:[];
+    liqBackend='ok';
+  }catch(e){ liqBackend=/HTTP 404/.test(e.message)?'sin-modulo':'error'; }
+  const m={...local, ...liqMapa(remotas)};   // si está en el servidor, manda el servidor
+  liqGuardarLocal(m);
+  liqAll=liqOrdenar(Object.values(m));
+  if(liqBackend==='ok'){
+    const enServidor=new Set(remotas.map(l=>l.numero));
+    const faltan=liqAll.filter(l=>!enServidor.has(l.numero));
+    if(faltan.length) liqSubir(faltan,backend).catch(()=>{});
+  }
+  reconstruirIngClas();
+  if(!enLote && ingOk) renderReporte();
+}
+
+// Cada liquidación del período entra al reporte como un ingreso operativo de Neoform por lo que se cobra.
+function liqComoIngresos(desde,hasta){
+  return liqAll.filter(l=>l.fechaEmision>=desde && l.fechaEmision<=hasta).map(l=>{
+    const monto=Math.max(0,l.importeACobrar);
+    const c={empresa:'Neoform',sucursal:'Administración',origenFactura:'Liquidación ACLISA',fechaCobro:l.fechaEmision,cliente:'ACLISA',obraSocial:null,
+      concepto:`Liquidación de honorarios y gastos N° ${l.numero} (${liqPeriodoTxt(l)}) · importe a cobrar ${formatARS(l.importeACobrar)}`,
+      comprobante:l.numero,formaPago:'Transferencia Bancaria',tipoConcepto:'Liquidación ACLISA',monto,montoFacturado:l.importeACobrar,_liq:l};
+    return {c,e:'NEO',k:{tipo:'OP',cat:'Liquidaciones ACLISA',sub:`Liquidación ${l.numero} · ${liqPeriodoTxt(l)}`,so:Number(l.numero)||50,
+      det:l.importeACobrar<0?'Saldo negativo: no se cobra':null,o:10}};
+  });
+}
+// ingClas = cobros del sistema (ingClasBase) + liquidaciones de ACLISA del mismo período
+function reconstruirIngClas(){
+  ingClas=ingOk?[...ingClasBase,...liqComoIngresos(ingRango.desde,ingRango.hasta)]:ingClasBase.slice();
+}
+
+// Fechas con prefacturas de ACLISA (Neoform) que no tienen una liquidación cargada con fecha cercana (±3 días)
+const liqDias=(a,b)=>Math.abs((Date.parse(a)-Date.parse(b))/86400000);
+function liqFaltantes(){
+  const fechas=[...new Set(ingClas.filter(x=>x.e==='NEO'&&x.k.tipo==='REF').map(x=>x.c.fechaCobro))].sort();
+  return fechas.filter(f=>!liqAll.some(l=>liqDias(l.fechaEmision,f)<=3));
+}
+
+// ── Carga del PDF ──
+let _pdfjsP=null;
+function cargarPdfJs(){
+  if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if(_pdfjsP) return _pdfjsP;
+  const base='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/';
+  _pdfjsP=new Promise((ok,ko)=>{
+    const s=document.createElement('script'); s.src=base+'pdf.min.js';
+    s.onload=()=>{ window.pdfjsLib.GlobalWorkerOptions.workerSrc=base+'pdf.worker.min.js'; ok(window.pdfjsLib); };
+    s.onerror=()=>{ _pdfjsP=null; ko(new Error('no se pudo cargar el lector de PDF (revisá la conexión)')); };
+    document.head.appendChild(s);
+  });
+  return _pdfjsP;
+}
+async function liqLeerPDF(file){
+  const pdfjs=await cargarPdfJs();
+  const doc=await pdfjs.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
+  const pags=[];
+  for(let p=1;p<=doc.numPages;p++){
+    const tc=await (await doc.getPage(p)).getTextContent();
+    pags.push(tc.items.map(i=>({str:i.str,x:i.transform[4],y:i.transform[5]})));
+  }
+  return parsearLiquidacionAclisa(liqAgruparLineas(pags));
+}
+
+async function procesarLiquidacionesPDF(){
+  const input=document.getElementById('liq-archivo');
+  const estado=document.getElementById('liq-upload-estado');
+  const det=document.getElementById('liq-upload-detalle');
+  const backend=document.getElementById('flt-backend').value.trim().replace(/\/$/,'');
+  const files=[...(input.files||[])];
+  if(!files.length){ estado.style.color='var(--cemei)'; estado.textContent='Elegí uno o más PDF primero.'; return; }
+  estado.style.color='var(--muted)'; estado.textContent='Leyendo PDF…'; det.innerHTML='';
+  const previas=liqMapa(liqAll), buenas=[], filas=[];
+  for(const f of files){
+    try{
+      const r=await liqLeerPDF(f);
+      if(r.errores.length){ filas.push({ok:false,txt:`${f.name}: ${r.errores.join(' · ')}`}); continue; }
+      const l=r.liq; l.subidoEn=new Date().toISOString();
+      if(buenas.some(x=>x.numero===l.numero)){ filas.push({ok:false,txt:`${f.name}: la liquidación N° ${l.numero} está repetida en esta carga`}); continue; }
+      buenas.push(l);
+      const desde=ingRango.desde, hasta=ingRango.hasta;
+      const fuera=ingOk && (l.fechaEmision<desde || l.fechaEmision>hasta);
+      filas.push({ok:true,
+        txt:`N° ${l.numero} · ${liqPeriodoTxt(l)} · emitida ${formatFecha(l.fechaEmision)} · importe a cobrar ${formatARS(l.importeACobrar)} → ingreso operativo ${formatARS(Math.max(0,l.importeACobrar))}`,
+        nota:[previas[l.numero]?'ya estaba cargada: se actualizó':'', fuera?'queda fuera del período que estás viendo':'', ...r.avisos].filter(Boolean).join(' · ')});
+    }catch(e){ filas.push({ok:false,txt:`${f.name}: no se pudo leer el PDF (${e.message})`}); }
+  }
+  if(buenas.length){
+    const mapa={...liqLeerLocal(),...liqMapa(buenas)}; liqGuardarLocal(mapa);
+    liqAll=liqOrdenar(Object.values({...liqMapa(liqAll),...liqMapa(buenas)}));
+    let dest='servidor', motivo='';
+    try{ await liqSubir(buenas,backend); liqBackend='ok'; }
+    catch(e){ dest='navegador'; motivo=e.message; }
+    estado.style.color=dest==='servidor'?'var(--sig)':'var(--muted)';
+    estado.textContent=dest==='servidor'
+      ? `Listo — ${buenas.length} liquidación(es) guardada(s) en el servidor.`
+      : `Se cargaron ${buenas.length} liquidación(es), pero NO se pudieron guardar en el servidor (${motivo}). Quedan solo en este navegador.`;
+    reconstruirIngClas();
+    if(ingOk) renderReporte();
+    else estado.textContent+=' Tocá Consultar para verlas en el reporte.';
+  }else{
+    estado.style.color='var(--cemei)'; estado.textContent='No se cargó ninguna liquidación.';
+  }
+  det.innerHTML=filas.map(f=>`<div style="margin-top:4px;color:${f.ok?'var(--text)':'var(--cemei)'}">${f.ok?'✓':'✗'} ${esc(f.txt)}${f.nota?` <span style="color:var(--muted)">(${esc(f.nota)})</span>`:''}</div>`).join('');
+  input.value='';
+}
+
+// ── Bloque del reporte ──
+const liqSum=(a,f)=>(a||[]).reduce((s,x)=>s+(f(x)||0),0);
+function liqResumen(l){
+  const d=l.descuentos||[], por=t=>liqSum(d.filter(x=>liqTipoDescuento(x)===t),x=>x.total);
+  const base=l.totalBase!=null?l.totalBase:((l.totalRendiciones||0)+(l.totalDebCred||0)+(l.iva||0));
+  return {base,costos:por('COSTO'),adel:por('ADELANTO'),dif:por('DIFERENCIA'),ret:liqSum(l.retenciones,x=>x.total)};
+}
+function liqEstado(l){
+  if(l.importeACobrar>=0) return 'Se cobra';
+  const sig=liqAll.find(o=>o.numero!==l.numero && (o.descuentos||[]).some(d=>liqTipoDescuento(d)==='DIFERENCIA' && liqRefNumero(d)===l.numero));
+  return sig?`Saldo negativo, arrastrado en la N° ${sig.numero}`:'Saldo negativo vigente: se descuenta de la próxima liquidación';
+}
+// Textos de la liquidación (vienen en MAYÚSCULAS): título + algunas siglas/tildes que bonito() no conoce
+const liqBonito=s=>bonito(s).replace(/\bDgr\b/g,'DGR').replace(/\bAuditoria\b/g,'Auditoría').replace(/\bMedica\b/g,'Médica');
+function liqDetalleHTML(l){
+  const fila=(a,b,c,d)=>`<tr><td>${esc(a)}</td><td class="small">${esc(b)}</td><td>${esc(c)}</td><td class="num ${d<0?'neg-txt':''}">${formatARS(d)}</td></tr>`;
+  const ETQ={COSTO:'Costo',ADELANTO:'Adelanto',DIFERENCIA:'Saldo anterior'};
+  const desc=(l.descuentos||[]).map(d=>fila(liqBonito(d.concepto),d.detalle||'',ETQ[liqTipoDescuento(d)],d.total)).join('');
+  const ret=(l.retenciones||[]).map(r=>fila(liqBonito(r.concepto),'','Retención',r.total)).join('');
+  const pOS=new Map();
+  (l.rendiciones||[]).forEach(r=>{ const k=r.os; const o=pOS.get(k)||{n:0,t:0}; o.n++; o.t+=r.total||0; pOS.set(k,o); });
+  const os=[...pOS.entries()].sort((a,b)=>b[1].t-a[1].t).map(([k,o])=>`<tr><td>${esc(bonito(k))}</td><td class="num">${o.n}</td><td class="num">${formatARS(o.t)}</td></tr>`).join('');
+  const pMot=new Map();
+  (l.debitos||[]).forEach(d=>{ const k=d.motivo||'Sin motivo'; const o=pMot.get(k)||{n:0,t:0}; o.n++; o.t+=d.total||0; pMot.set(k,o); });
+  const mot=[...pMot.entries()].map(([k,o])=>`<tr><td>${esc(liqBonito(k))}</td><td class="num">${o.n}</td><td class="num neg-txt">${formatARS(o.t)}</td></tr>`).join('');
+  return `<details class="nota"><summary>N° ${esc(l.numero)} · ${esc(liqPeriodoTxt(l))} — descuentos, retenciones y rendiciones</summary>
+    <div class="table-scroll" style="max-height:none;margin:10px 0"><table class="cat-tabla"><thead><tr><th>Concepto</th><th>Detalle</th><th>Tipo</th><th class="num">Importe</th></tr></thead><tbody>${desc}${ret}</tbody></table></div>
+    ${mot?`<div class="table-scroll" style="max-height:none;margin:10px 0"><table class="cat-tabla"><thead><tr><th>Débitos / créditos por motivo</th><th class="num">Cant.</th><th class="num">Importe</th></tr></thead><tbody>${mot}</tbody></table></div>`:''}
+    <div class="table-scroll" style="max-height:none;margin:10px 0"><table class="cat-tabla"><thead><tr><th>Rendiciones por obra social</th><th class="num">Cant.</th><th class="num">Total liquidado</th></tr></thead><tbody>${os}</tbody></table></div>
+  </details>`;
+}
+function renderLiquidaciones(emp){
+  const cont=document.getElementById('sec-liq');
+  if((emp&&emp!=='NEO') || !ingOk){ cont.innerHTML=''; return; }
+  const {desde,hasta}=ingRango;
+  const del=liqAll.filter(l=>l.fechaEmision>=desde && l.fechaEmision<=hasta);
+  const refs=ingClas.filter(x=>x.e==='NEO' && x.k.tipo==='REF');
+  if(!del.length && !refs.length){ cont.innerHTML=''; return; }
+  const cab=banda('op','Neoform · Liquidaciones de ACLISA','Lo que ACLISA liquida y descuenta antes de pagar · '+formatFecha(desde)+' al '+formatFecha(hasta));
+  const sinMod=liqBackend==='sin-modulo'?`<div class="aviso info">El servidor todavía no tiene el módulo de liquidaciones: las liquidaciones que subas quedan guardadas solo en este navegador.</div>`:
+               liqBackend==='error'?`<div class="aviso info">No se pudo consultar el servidor de liquidaciones: se muestran las guardadas en este navegador.</div>`:'';
+  const prefTot=sumaPor(refs,x=>x.c.monto);
+  const adelCob=sumaPor(ingClas.filter(x=>x.e==='NEO'&&x.k.cat==='Adelantos ACLISA'),x=>x.c.monto);
+  let tabla;
+  if(!del.length) tabla=`<div class="vacio-blk">No hay liquidaciones de ACLISA cargadas con fecha de emisión en este período.</div>`;
+  else{
+    const R=del.map(l=>({l,r:liqResumen(l)}));
+    const T=(f)=>R.reduce((s,x)=>s+f(x),0);
+    const num=v=>`<td class="num ${v<0?'neg-txt':''}">${formatARS(v)}</td>`;
+    const filas=R.map(({l,r})=>`<tr>
+      <td><b>N° ${esc(l.numero)}</b> · ${esc(liqPeriodoTxt(l))}<div style="font-size:12px;color:var(--muted)">${esc(liqEstado(l))}</div></td>
+      <td>${formatFecha(l.fechaEmision)}</td>${num(r.base)}${num(r.costos)}${num(r.ret)}${num(r.adel)}${num(r.dif)}${num(l.importeACobrar)}
+      <td class="num pos-txt" style="font-weight:800">${formatARS(Math.max(0,l.importeACobrar))}</td></tr>`).join('');
+    tabla=`<div class="table-scroll" style="max-height:none"><table class="cat-tabla" style="border:none"><thead><tr>
+      <th>Liquidación</th><th>Emisión</th><th class="num">Liquidado</th><th class="num">Costos</th><th class="num">Retenciones</th><th class="num">Adelantos descontados</th><th class="num">Saldos anteriores</th><th class="num">Importe a cobrar</th><th class="num">Ingreso operativo</th></tr></thead>
+      <tbody>${filas}<tr class="total-row"><td>Total · ${del.length} liquidación(es)</td><td></td>${num(T(x=>x.r.base))}${num(T(x=>x.r.costos))}${num(T(x=>x.r.ret))}${num(T(x=>x.r.adel))}<td></td><td></td>
+      <td class="num">${formatARS(T(x=>Math.max(0,x.l.importeACobrar)))}</td></tr></tbody></table></div>
+      <div class="nota-lim">Importe a cobrar = Liquidado − costos − retenciones − adelantos descontados − saldos de liquidaciones anteriores. Cada liquidación arrastra el saldo negativo de las anteriores, por eso los saldos y los importes a cobrar no se suman entre sí: solo cuenta como ingreso lo que da positivo.</div>
+      ${R.map(x=>liqDetalleHTML(x.l)).join('')}`;
+  }
+  cont.innerHTML=cab+sinMod+tabla+
+    `<div class="kpis" style="margin-top:16px"><div class="kpi"><div class="kpi-t">Para comparar</div>
+      <div class="kpi-row"><span>Prefacturas de ACLISA del período (no suman)</span><b>${formatARS(prefTot)}</b></div>
+      <div class="kpi-row"><span>Adelantos de ACLISA recibidos en el período</span><b>${formatARS(adelCob)}</b></div>
+      <div class="kpi-row"><span>Adelantos descontados en las liquidaciones del período</span><b>${formatARS(-sumaPor(del,l=>liqResumen(l).adel))}</b></div>
+    </div></div>`;
+}
+
 // ══════════════════════════════════════════════════════
 // CLASIFICACIÓN: OPERATIVO / NO OPERATIVO + RUBROS
 // (lógica pura, sin DOM — se puede probar suelta contra datos reales)
@@ -630,6 +995,12 @@ function clasificarIngreso(c){
   // Medicina Laboral: solo tiene clientes (empresas). No se separa en Particular / Plus / Convenios Directos como
   // CEMEI: Medicina Laboral > cliente. Al filtrar Medicina Laboral se muestra solo el listado de clientes.
   if(key==='LABORAL') return {tipo:'OP',cat:'Medicina Laboral',sub:(c.cliente&&String(c.cliente).trim())||'Sin cliente',det:null,o:50};
+  // Neoform: los adelantos que deposita ACLISA son plata que entra (operativo) y van aparte de las facturas a ACLISA.
+  // El cliente correcto es "ADELANTOS ACLISA"; se aceptan también los cobros viejos cargados como cliente ACLISA + concepto "Adelanto".
+  if(key==='NEO'){
+    const cli=normT(c.cliente), con=normT(c.concepto);
+    if(cli.includes('ADELANTOS ACLISA') || (cli==='ACLISA' && /\bADELANTO/.test(con))) return {tipo:'OP',cat:'Adelantos ACLISA',sub:null,det:null,o:11};
+  }
   // Otros convenios de la Farmacia: cobranza (RC) de Neoform, CEMEI, Salud Integral interno, directores y
   // colaboradores. El backend los separa del resto (CONVENIOS_FARMACIA en server.js) y acá van como categoría
   // propia, igual que "OTROS CONVENIOS" en la planilla: Otros convenios > grupo > cliente.
@@ -648,6 +1019,9 @@ function clasificarIngreso(c){
   if(tf) return {tipo:'OP',cat:tf==='Venta de ordenes'?'Venta de órdenes':tf,sub:c.subTipo||null,det:null,o:50};
   // CEMEI / Neoform / Medicina Laboral
   const {cat,sub,det:detCat=null}=categoriaExcel(c);
+  // Neoform: las prefacturas a ACLISA NO son un cobro (ACLISA paga el importe a cobrar de la liquidación, ya sin
+  // adelantos ni descuentos): quedan como referencia y el ingreso operativo sale de las liquidaciones.
+  if(key==='NEO' && cat==='ACLISA') return {tipo:'REF',cat:'Prefacturas ACLISA (referencia)',sub:sub||null,det:null,o:90};
   let s=sub;
   if(!s && !['ACLISA','Convenios Directos'].includes(cat)) s=(key==='NEO'?'Neoform':(c.sucursal||null));
   return {tipo:'OP',cat,sub:s,det:detCat,o:50};
@@ -1050,8 +1424,9 @@ function esMovInterno(rubro,concepto){
 
 async function consultarTodo(){
   ingOk=false; egOk=false; comprasOk=false; enLote=true;
-  try{ await Promise.all([consultarEgresos(), consultarIngresos(), consultarCompras()]); }
+  try{ await Promise.all([consultarEgresos(), consultarIngresos(), consultarCompras(), consultarLiquidaciones()]); }
   finally{ enLote=false; }
+  reconstruirIngClas();
   renderReporte();
 }
 
@@ -1135,9 +1510,11 @@ async function consultarIngresos(){
       if(cli.includes('MOVIMIENTO ENTRE CUENTAS')) return false;
       return true;
     });
-    ingClas=ingBrutos.map(c=>({c,k:clasificarIngreso(c),e:empresaKey(c.empresa,c.sucursal)}));
+    ingClasBase=ingBrutos.map(c=>({c,k:clasificarIngreso(c),e:empresaKey(c.empresa,c.sucursal)}));
+    ingRango={desde,hasta:hasta||desde};
     ingFarmaciaDeuda=data.farmaciaDeuda||{cobertura:0,ctaCtePendiente:0,meses:[]};
     ingOk=true;
+    reconstruirIngClas();
     estado.textContent=`${ingBrutos.length} cobros — Total: ${formatARS(ingBrutos.reduce((a,c)=>a+(c.monto||0),0))}`;
     document.getElementById('stampFecha').textContent=`Actualizado: ${new Date().toLocaleString('es-AR')}`;
     if(!enLote) renderReporte();
@@ -1278,6 +1655,11 @@ function renderReporte(){
     document.getElementById('aviso').innerHTML+=`<div class="aviso info">El efectivo de Farmacia se toma de las rendiciones de caja, que es lo que ingresa a la empresa. No se suma el efectivo del CSV de ventas (${formatARS(ingExcl.monto)}) porque es la misma plata.</div>`;
   }
 
+  if(!emp||emp==='NEO'){
+    const falt=liqFaltantes();
+    if(falt.length) document.getElementById('aviso').innerHTML+=`<div class="aviso">Neoform: hay prefacturas de ACLISA del ${falt.map(formatFecha).join(', ')} sin liquidación cargada. Subí el PDF de esa liquidación: hasta entonces el ingreso operativo de ACLISA de esa fecha figura en $0.</div>`;
+  }
+
   // ── Resumen ──
   const kRow=(l,v,cls)=>`<div class="kpi-row"><span>${l}</span><b class="${cls||''}">${formatARS(v)}</b></div>`;
   const kBig=(l,v)=>`<div class="kpi-row big"><span>${l}</span><b class="${signoCls(v)}">${formatARS(v)}</b></div>`;
@@ -1336,6 +1718,7 @@ function renderReporte(){
       <div class="eq-box tot"><small>Resultado total</small><b class="${signoCls(rTot)}">${formatARS(rTot)}</b></div>
     </div>`;
 
+  renderLiquidaciones(emp);
   renderNeoDevengado(emp);
   dibujarGraficos(aIngOp,aEgOp);
   renderDetalle(ing,egr);
@@ -1378,8 +1761,8 @@ function renderNeoDevengado(emp){
   const htmlDev=`
     <div class="kpis" style="margin-bottom:20px">
       <div class="kpi"><div class="kpi-t">Ingresos del período</div>
-        ${kRow('Cobrado sin descontar adelantos',ingNeo,'pos-txt')}
-        <div style="font-size:12.5px;color:var(--muted);margin-top:6px">${ingOk?'Ingresos operativos de Neoform (liquidaciones de obras sociales y particulares).':'No se pudieron cargar los ingresos.'}</div></div>
+        ${kRow('Ingresos operativos',ingNeo,'pos-txt')}
+        <div style="font-size:12.5px;color:var(--muted);margin-top:6px">${ingOk?'Lo que realmente entra: importe a cobrar de las liquidaciones de ACLISA, adelantos de ACLISA y particulares.':'No se pudieron cargar los ingresos.'}</div></div>
       <div class="kpi"><div class="kpi-t">Egresos devengados</div>
         ${kRow('Pagado',pag)}${kRow('Pendiente de pago',pen,pen>0.5?'neg-txt':'')}
         <div class="kpi-row big"><span>Total devengado</span><b class="neg-txt">${formatARS(dev)}</b></div></div>
@@ -1491,7 +1874,7 @@ function renderFarmaciaPanel(cobros,conv){
 }
 
 const LIM_FILAS=1000;
-const pillTipo=k=>`<span class="pill ${k.tipo==='OP'?'op':'noop'}">${k.tipo==='OP'?'Operativo':'No operativo'}</span>`;
+const pillTipo=k=>k.tipo==='REF'?`<span class="pill noop" title="Prefactura de ACLISA: solo referencia, no suma">Referencia</span>`:`<span class="pill ${k.tipo==='OP'?'op':'noop'}">${k.tipo==='OP'?'Operativo':'No operativo'}</span>`;
 
 function renderDetalle(ing,egr){
   const farmOp=ing.filter(x=>x.k.tipo==='OP' && x.e==='FARMACIA');
@@ -1568,7 +1951,7 @@ function exportarIngresosCSV(){
     {header:'Fecha Cobro',get:x=>formatFecha(x.c.fechaCobro)},
     {header:'Empresa',get:x=>x.c.empresa||''},
     {header:'Sucursal',get:x=>x.c.sucursal||''},
-    {header:'Tipo',get:x=>x.k.tipo==='OP'?'Operativo':'No operativo'},
+    {header:'Tipo',get:x=>x.k.tipo==='OP'?'Operativo':x.k.tipo==='REF'?'Referencia (no suma)':'No operativo'},
     {header:'Rubro',get:x=>bonito(x.k.cat)},
     {header:'Subrubro',get:x=>bonito(x.k.sub||'')},
     {header:'Tipo Factura',get:x=>x.c.tipoFactura||''},
@@ -1591,6 +1974,7 @@ function exportarIngresosCSV(){
 function actualizarVisibilidadCargaFarmacia(){
   const emp=document.getElementById('flt-empresa').value;
   document.getElementById('farmacia-upload-section').style.display=(emp===''||emp==='FARMACIA')?'':'none';
+  document.getElementById('liq-upload-section').style.display=(emp===''||emp==='NEO')?'':'none';
 }
 // El filtro de empresa no vuelve a pedir datos: reclasifica lo ya traído y rearma todo el reporte.
 document.getElementById('flt-empresa').addEventListener('change',()=>{
