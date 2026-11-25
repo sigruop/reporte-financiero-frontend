@@ -1337,6 +1337,36 @@ function ordenLaboral(k){
   return co==null?k:{...k,o:co,so:ordenCE(LAB_SUB_ORD,k.sub),dor:ordenCE(LAB_DET_ORD,k.det)};
 }
 
+// ── Neoform: egresos con la estructura del Excel de Neoform (nov/2026) ──
+// Los pagos de Neoform ya traen Categoría > Subcategoría > Detalle del sistema de Neoform y casi todo coincide
+// con el Excel; acá se corrige lo que el Excel ubica distinto y lo demás conserva la clasificación del backend.
+// Todo es Operativo: el Excel incluye la devolución de préstamos y la deuda con MEPROA dentro de "Otros Gastos".
+const NEO_SUB_ORD=['GASTOS DEL PERSONAL','HONORARIOS DE TERCEROS','SISTEMAS','IMPUESTOS','GASTOS BANCARIOS','SERVICIOS','GASTOS GENERALES DE FUNCIONAMIENTO','REINTEGRO SEÑAS','OTROS GASTOS','FOLLETERIA/IMPRENTAS','OTROS GASTOS COMERCIALES','HONORARIOS MEDICOS','COSTOS DIRECTOS'];
+const NEO_DET_ORD=['SUELDOS NEO','ACUERDOS LIQUIDACIONES','JUDICIALES','ABOGADOS','CONTADORES','HONORARIOS BALANCE','OTROS HONORARIOS','SOEM','APORTE Y CONTR (931)','ART','AFIP PLANES DE PAGO','PLAN DE PAGO O.S UP','GASTOS BANCARIOS',
+  'TELECOM','REFSA','MEJOR AGUA','ALQUILER NEO','SEGURO DE VIDA SOCIOS SMG','SEGUROS CNP ASSURANCE','MERCADERIA Y PRODUCTOS DE LIMPIEZA','MANTENIMIENTO Y REFACCIONES','FLETES, MOTOMANDADOS, VIATICOS','INSUMOS INFORMATICOS Y LIBRERIA','VARIOS',
+  'DEVOLUCION PRESTAMO ACLISA','DEVOLUCION PRESTAMO SAMED','DEUDA MEPROA','HON MEDICOS PLANTA + GUARDIA','HON CIRUJANOS','HON VACUNADOR','OTROS',
+  'DROGUERIAS/FARMACIAS','OXIGENO - AIR LIQUIDE','MEPROA - SERVICIOS, QUIROFANO, PLACAS','ALQUILER BARCENA Y BOLSAS ROJAS','LAVANDERIA','OTROS INSUMOS'];
+const ordenN=(lista,x)=>{ const i=x?lista.indexOf(normT(x)):-1; return i<0?undefined:i+1; };
+// Orden de filas del Excel de Neoform (solo al filtrar Neoform; con "Todas" se mezcla con las demás empresas)
+const ordenNeo=k=>({...k,so:ordenN(NEO_SUB_ORD,k.sub),dor:ordenN(NEO_DET_ORD,k.det)});
+function neoEgreso(p){
+  const r=normT(p.rubro), d=normT(p.detalle), c=normT(p.concepto), cat=canonCat(p.categoria);
+  const GA='GASTOS ADMINISTRATIVOS', GM='GASTOS MEDICOS Y DE INSUMOS', GC='GASTOS COMERCIALES';
+  const mk=(catName,sub,det)=>{ const cc=canonCat(catName); return {tipo:'OP',cat:cc.cat,o:cc.o,sub:sub||null,det:det||null}; };
+  // Compras que Salud Integral hace para Neoform (insumos, envíos, motomandados…): Costos Directos > Otros Insumos.
+  // Si es un honorario (p.ej. un acuerdo judicial) va a Honorarios de Terceros > Otros Honorarios.
+  if(d==='PAGADO POR SALUD INTEGRAL') return /HONORARIOS/.test(c)?mk(GA,'HONORARIOS DE TERCEROS','OTROS HONORARIOS'):mk(GM,'COSTOS DIRECTOS','OTROS INSUMOS');
+  if(/^DEVOLUCION PRESTAMO/.test(r)||/^DEVOLUCION PRESTAMO/.test(d)) return mk(GA,'OTROS GASTOS',p.detalle||p.rubro);
+  if(r==='HONORARIOS BALANCES'||d==='HONORARIOS BALANCES') return mk(GA,'HONORARIOS DE TERCEROS','HONORARIOS BALANCE');
+  if(d==='VARIOS' && /BALANCE/.test(c)) return mk(GA,'HONORARIOS DE TERCEROS','HONORARIOS BALANCE'); // certificación del balance
+  if(d==='VARIOS' && /REGALO/.test(c)) return mk(GC,'OTROS GASTOS COMERCIALES',null);
+  if(r==='OTROS HONORARIOS'||d==='OTROS HONORARIOS') return mk(GM,'HONORARIOS MEDICOS','OTROS'); // kinesiología y otros profesionales
+  if(r==='OBRA SOCIAL PLANES DE PAGO'||d==='OBRA SOCIAL PLANES DE PAGO') return mk(GA,'IMPUESTOS','PLAN DE PAGO O.S UP');
+  if(cat.cat==='Gastos Comerciales') return mk(GC,p.detalle||p.subcategoria||'OTROS GASTOS COMERCIALES',null); // en el Excel las líneas cuelgan directo del rubro
+  if(normT(p.subcategoria)==='REINTEGRO SENAS') return mk(GA,'REINTEGRO SEÑAS',null);
+  return null; // lo que no encaja conserva la clasificación del backend (queda a la vista)
+}
+
 // Empresa a la que se imputa un pago. Salud Integral (SIG) carga en su propio sistema algunos pagos que en
 // realidad son de la Farmacia: el rubro "SUELDOS DE SAMED" (haberes y honorarios del personal de la farmacia).
 // Se imputan a Farmacia (decisión de Gustavo) y se clasifican con la jerarquía de Farmacia.
@@ -1398,13 +1428,9 @@ function retiroSIGDeOtraEmpresa(p,e){
 function clasificarEgreso(p){
   const key=empresaEgreso(p), base=empresaEgresoBase(p);
   if(key==='SIG' && base!=='SIG'){ const k=retiroSIGDeOtraEmpresa(p,base); if(k) return k; }
+  if(key==='NEO'){ const x=neoEgreso(p); if(x) return x; }
   const n=noopEgreso(p,key);
   if(n) return {tipo:'NOOP',cat:n.cat,sub:n.sub,det:n.det,o:n.o};
-  // Neoform: "Otros Honorarios" es un detalle de Honorarios Médicos (pedido de Gustavo, nov/2026) y no de Honorarios de Terceros.
-  if(key==='NEO' && (normT(p.rubro)==='OTROS HONORARIOS' || normT(p.detalle)==='OTROS HONORARIOS')){
-    const cc=canonCat('GASTOS MEDICOS Y DE INSUMOS');
-    return {tipo:'OP',cat:cc.cat,sub:'Honorarios Médicos',det:'Otros Honorarios',o:cc.o};
-  }
   if(key==='CEMEI'||key==='ODONT'){ const x=cemeiEgreso(p,key); if(x) return x; }
   if(key==='LABORAL'){ const x=laboralEgreso(p); if(x) return x; }
   if(key==='FARMACIA'){
@@ -1688,7 +1714,8 @@ function renderReporte(){
   const soloClientes=x=>emp==='LABORAL'&&x.k.cat==='Medicina Laboral'?{...x,k:{...x.k,cat:x.k.sub||'Sin cliente',sub:null,det:null}}:x;
   const ingOp=ing.filter(x=>x.k.tipo==='OP').map(soloClientes),   ingNo=ing.filter(x=>x.k.tipo==='NOOP');
   const ordLab=x=>emp==='LABORAL'?{...x,k:ordenLaboral(x.k)}:x; // filas en el orden del Excel de Laboral
-  const egOp =egr.filter(x=>x.k.tipo==='OP').map(ordLab),   egNo =egr.filter(x=>x.k.tipo==='NOOP');
+  const ordNeo=x=>emp==='NEO'&&x.e==='NEO'?{...x,k:ordenNeo(x.k)}:x; // filas en el orden del Excel de Neoform
+  const egOp =egr.filter(x=>x.k.tipo==='OP').map(ordLab).map(ordNeo),   egNo =egr.filter(x=>x.k.tipo==='NOOP');
   const mI=x=>x.c.monto, mE=x=>x.p.importe, eK=x=>x.e;
   const aIngOp=armarArbol(ingOp,mI,eK), aEgOp=armarArbol(egOp,mE,eK);
   const aIngNo=armarArbol(ingNo,mI,eK), aEgNo=armarArbol(egNo,mE,eK);
