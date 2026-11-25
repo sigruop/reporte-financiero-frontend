@@ -1400,6 +1400,11 @@ function clasificarEgreso(p){
   if(key==='SIG' && base!=='SIG'){ const k=retiroSIGDeOtraEmpresa(p,base); if(k) return k; }
   const n=noopEgreso(p,key);
   if(n) return {tipo:'NOOP',cat:n.cat,sub:n.sub,det:n.det,o:n.o};
+  // Neoform: "Otros Honorarios" es un detalle de Honorarios Médicos (pedido de Gustavo, nov/2026) y no de Honorarios de Terceros.
+  if(key==='NEO' && (normT(p.rubro)==='OTROS HONORARIOS' || normT(p.detalle)==='OTROS HONORARIOS')){
+    const cc=canonCat('GASTOS MEDICOS Y DE INSUMOS');
+    return {tipo:'OP',cat:cc.cat,sub:'Honorarios Médicos',det:'Otros Honorarios',o:cc.o};
+  }
   if(key==='CEMEI'||key==='ODONT'){ const x=cemeiEgreso(p,key); if(x) return x; }
   if(key==='LABORAL'){ const x=laboralEgreso(p); if(x) return x; }
   if(key==='FARMACIA'){
