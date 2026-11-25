@@ -195,6 +195,27 @@
   .fp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:18px;}
   .fp-l{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;margin-bottom:6px;}
   .fp-v{font-size:20px;font-weight:700;}
+  /* Carga de liquidaciones de ACLISA */
+  .liq-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 20px;}
+  .liq-head{display:flex;align-items:center;justify-content:space-between;gap:12px 24px;flex-wrap:wrap;}
+  .liq-tt{font-weight:700;font-size:15px;color:var(--ink);}
+  .liq-ss{font-size:13px;color:var(--muted);margin-top:2px;}
+  .liq-ctl{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .liq-names{font-size:13px;color:var(--muted);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .liq-names.on{color:var(--ink);font-weight:600;}
+  .liq-ctl label.btn-xs{display:inline-block;}
+  .liq-ctl .btn{padding:8px 20px;font-size:14px;}
+  .liq-res{margin-top:14px;padding-top:12px;border-top:1px solid var(--line2);}
+  .liq-sum{font-weight:700;font-size:14px;}
+  .liq-sum.ok{color:var(--pos);} .liq-sum.warn{color:var(--noop);} .liq-sum.err{color:var(--neg);}
+  .liq-hint{font-size:13px;color:var(--muted);margin-top:4px;}
+  .liq-tbl{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:8px;}
+  .liq-tbl th{text-align:left;font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:6px 8px;}
+  .liq-tbl td{padding:8px;border-top:1px solid var(--line2);vertical-align:top;}
+  .liq-tbl .num,.liq-tbl th.num{text-align:right;white-space:nowrap;}
+  .liq-nota{font-size:12px;color:var(--muted);margin-top:2px;}
+  .liq-ic{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;font-size:12px;font-weight:800;}
+  .liq-ic.ok{background:var(--pos-soft);color:var(--pos);} .liq-ic.err{background:var(--neg-soft);color:var(--neg);}
   .up-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
   footer{margin-top:50px;padding-top:16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted);text-align:center;}
   @media(max-width:900px){.kpis,.charts{grid-template-columns:1fr;} .eq-op{display:none;} .hero-title{font-size:28px;} .blk-total{font-size:22px;}
@@ -269,14 +290,22 @@
 
   <!-- Carga de liquidaciones de ACLISA (solo visible con "Todas" o "Neoform") -->
   <section id="liq-upload-section" style="margin:6px 0 4px;">
-    <div class="up-card">
-      <strong>Cargar liquidaciones de ACLISA</strong>
-      <input type="file" id="liq-archivo" accept=".pdf,application/pdf" multiple/>
-      <button class="btn" style="padding:9px 20px;font-size:14px" onclick="procesarLiquidacionesPDF()">Procesar PDF</button>
-      <span id="liq-upload-estado" style="font-size:13px;color:var(--muted);"></span>
+    <div class="liq-card">
+      <div class="liq-head">
+        <div>
+          <div class="liq-tt">Liquidaciones de ACLISA</div>
+          <div class="liq-ss">PDF "Liquidación de honorarios y gastos". Si subís una que ya está cargada, la reemplaza.</div>
+        </div>
+        <div class="liq-ctl">
+          <input type="file" id="liq-archivo" accept=".pdf,application/pdf" multiple hidden onchange="liqNombres()"/>
+          <label for="liq-archivo" class="btn-xs">Elegir PDF</label>
+          <span id="liq-nombres" class="liq-names">Ningún archivo</span>
+          <button class="btn" onclick="procesarLiquidacionesPDF()">Procesar</button>
+          <span id="liq-upload-estado" style="font-size:13px;color:var(--muted);"></span>
+        </div>
+      </div>
+      <div id="liq-upload-detalle" class="liq-res" style="display:none"></div>
     </div>
-    <div id="liq-upload-detalle" style="font-size:13px;padding:4px 2px 0;"></div>
-    <div style="font-size:12.5px;color:var(--muted);padding:6px 2px 0;">PDF "Liquidación de honorarios y gastos" de ACLISA (se pueden elegir varios). El ingreso operativo de ACLISA se arma con el <b>importe a cobrar</b> de cada liquidación, con piso en $0. Si volvés a subir una liquidación, reemplaza la anterior.</div>
   </section>
 
   <div id="vacio" class="vacio">Elegí el período y la empresa, y tocá <strong>Consultar</strong> para armar el reporte.</div>
@@ -780,47 +809,60 @@ async function liqLeerPDF(file){
   return parsearLiquidacionAclisa(liqAgruparLineas(pags));
 }
 
+function liqNombres(){
+  const f=[...(document.getElementById('liq-archivo').files||[])];
+  const el=document.getElementById('liq-nombres');
+  el.textContent=!f.length?'Ningún archivo':f.length===1?f[0].name:`${f.length} archivos`;
+  el.title=f.map(x=>x.name).join('\n'); el.classList.toggle('on',f.length>0);
+  document.getElementById('liq-upload-estado').textContent='';
+  const det=document.getElementById('liq-upload-detalle'); det.style.display='none'; det.innerHTML='';
+}
 async function procesarLiquidacionesPDF(){
   const input=document.getElementById('liq-archivo');
   const estado=document.getElementById('liq-upload-estado');
   const det=document.getElementById('liq-upload-detalle');
   const backend=document.getElementById('flt-backend').value.trim().replace(/\/$/,'');
   const files=[...(input.files||[])];
-  if(!files.length){ estado.style.color='var(--cemei)'; estado.textContent='Elegí uno o más PDF primero.'; return; }
-  estado.style.color='var(--muted)'; estado.textContent='Leyendo PDF…'; det.innerHTML='';
+  if(!files.length){ estado.style.color='var(--neg)'; estado.textContent='Elegí uno o más PDF primero.'; return; }
+  estado.style.color='var(--muted)'; estado.textContent='Leyendo…'; det.style.display='none'; det.innerHTML='';
   const previas=liqMapa(liqAll), buenas=[], filas=[];
   for(const f of files){
     try{
       const r=await liqLeerPDF(f);
-      if(r.errores.length){ filas.push({ok:false,txt:`${f.name}: ${r.errores.join(' · ')}`}); continue; }
+      if(r.errores.length){ filas.push({ok:false,txt:`${f.name} — ${r.errores.some(e=>/número de liquidación/.test(e))?'no parece una liquidación de ACLISA':r.errores.join(' · ')}`}); continue; }
       const l=r.liq; l.subidoEn=new Date().toISOString();
-      if(buenas.some(x=>x.numero===l.numero)){ filas.push({ok:false,txt:`${f.name}: la liquidación N° ${l.numero} está repetida en esta carga`}); continue; }
+      if(buenas.some(x=>x.numero===l.numero)){ filas.push({ok:false,txt:`${f.name} — la liquidación N° ${l.numero} está repetida en esta carga`}); continue; }
       buenas.push(l);
-      const desde=ingRango.desde, hasta=ingRango.hasta;
-      const fuera=ingOk && (l.fechaEmision<desde || l.fechaEmision>hasta);
-      filas.push({ok:true,
-        txt:`N° ${l.numero} · ${liqPeriodoTxt(l)} · emitida ${formatFecha(l.fechaEmision)} · importe a cobrar ${formatARS(l.importeACobrar)} → ingreso operativo ${formatARS(Math.max(0,l.importeACobrar))}`,
-        nota:[previas[l.numero]?'ya estaba cargada: se actualizó':'', fuera?'queda fuera del período que estás viendo':'', ...r.avisos].filter(Boolean).join(' · ')});
-    }catch(e){ filas.push({ok:false,txt:`${f.name}: no se pudo leer el PDF (${e.message})`}); }
+      const fuera=ingOk && (l.fechaEmision<ingRango.desde || l.fechaEmision>ingRango.hasta);
+      filas.push({ok:true,l,nota:[previas[l.numero]?'Ya estaba cargada: se reemplazó':'', fuera?'Fuera del período que estás viendo':'', ...r.avisos].filter(Boolean).join(' · ')});
+    }catch(e){ filas.push({ok:false,txt:`${f.name} — no se pudo leer el PDF (${e.message})`}); }
   }
+  let cls='err', resumen='No se cargó ninguna liquidación.', hint='';
   if(buenas.length){
-    const mapa={...liqLeerLocal(),...liqMapa(buenas)}; liqGuardarLocal(mapa);
+    liqGuardarLocal({...liqLeerLocal(),...liqMapa(buenas)});
     liqAll=liqOrdenar(Object.values({...liqMapa(liqAll),...liqMapa(buenas)}));
-    let dest='servidor', motivo='';
-    try{ await liqSubir(buenas,backend); liqBackend='ok'; }
-    catch(e){ dest='navegador'; motivo=e.message; }
-    estado.style.color=dest==='servidor'?'var(--sig)':'var(--muted)';
-    estado.textContent=dest==='servidor'
-      ? `Listo — ${buenas.length} liquidación(es) guardada(s) en el servidor.`
-      : `Se cargaron ${buenas.length} liquidación(es), pero NO se pudieron guardar en el servidor (${motivo}). Quedan solo en este navegador.`;
+    let motivo=null;
+    try{ await liqSubir(buenas,backend); liqBackend='ok'; }catch(e){ motivo=e.message; }
+    const n=buenas.length, pl=n===1?'liquidación guardada':'liquidaciones guardadas', fall=filas.filter(f=>!f.ok).length;
+    cls=motivo?'warn':'ok';
+    resumen=motivo?`${n} cargada(s), pero no se pudieron guardar en el servidor (${motivo}). Quedan solo en este navegador.`:`${n} ${pl} en el servidor`;
+    if(fall) resumen+=` · ${fall} con error`;
     reconstruirIngClas();
-    if(ingOk) renderReporte();
-    else estado.textContent+=' Tocá Consultar para verlas en el reporte.';
-  }else{
-    estado.style.color='var(--cemei)'; estado.textContent='No se cargó ninguna liquidación.';
+    if(ingOk) renderReporte(); else hint='<div class="liq-hint" id="liq-hint">Tocá <b>Consultar</b> para verlas en el reporte.</div>';
   }
-  det.innerHTML=filas.map(f=>`<div style="margin-top:4px;color:${f.ok?'var(--text)':'var(--cemei)'}">${f.ok?'✓':'✗'} ${esc(f.txt)}${f.nota?` <span style="color:var(--muted)">(${esc(f.nota)})</span>`:''}</div>`).join('');
-  input.value='';
+  const ARS=v=>formatARS(v);
+  filas.sort((a,b)=>(b.ok-a.ok)||(a.ok?a.l.fechaEmision.localeCompare(b.l.fechaEmision):0)); // primero las cargadas, por fecha; después los errores
+  const filasHTML=filas.map(f=>f.ok
+    ? `<tr><td style="width:30px"><span class="liq-ic ok">✓</span></td>
+        <td><b>N° ${esc(f.l.numero)}</b> · ${esc(liqPeriodoTxt(f.l))}${f.nota?`<div class="liq-nota">${esc(f.nota)}</div>`:''}</td>
+        <td>${formatFecha(f.l.fechaEmision)}</td>
+        <td class="num ${f.l.importeACobrar<0?'neg-txt':''}">${ARS(f.l.importeACobrar)}</td>
+        <td class="num" style="font-weight:700">${ARS(Math.max(0,f.l.importeACobrar))}</td></tr>`
+    : `<tr><td style="width:30px"><span class="liq-ic err">✕</span></td><td colspan="4" style="color:var(--neg)">${esc(f.txt)}</td></tr>`).join('');
+  det.innerHTML=`<div class="liq-sum ${cls}">${esc(resumen)}</div>${hint}
+    <table class="liq-tbl"><thead><tr><th></th><th>Liquidación</th><th>Emisión</th><th class="num">Importe a cobrar</th><th class="num">Ingreso operativo</th></tr></thead><tbody>${filasHTML}</tbody></table>`;
+  det.style.display=''; estado.textContent='';
+  input.value=''; const nm=document.getElementById('liq-nombres'); nm.textContent='Ningún archivo'; nm.classList.remove('on');
 }
 
 // ── Bloque del reporte ──
@@ -1630,6 +1672,7 @@ function renderReporte(){
   const rep=document.getElementById('reporte'), vac=document.getElementById('vacio');
   if(!ingOk && !egOk){ rep.style.display='none'; vac.style.display=''; return; }
   vac.style.display='none'; rep.style.display='';
+  document.getElementById('liq-hint')?.remove();
   const emp=document.getElementById('flt-empresa').value;
   const matchEmp=e=>!emp||(emp==='CEMEI_ALL'?(e==='CEMEI'||e==='ODONT'):e===emp);
   const ing=ingClas.filter(x=>matchEmp(x.e));
